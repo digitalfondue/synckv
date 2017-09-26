@@ -1,6 +1,7 @@
 package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.SyncKVMessage.*;
+import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
@@ -24,6 +25,7 @@ class MessageReceiver extends ReceiverAdapter {
 
     @Override
     public void receive(Message msg) {
+        // ignore messages sent to itself
         if (currentAddress.equals(msg.src())) {
             return;
         }
@@ -49,6 +51,7 @@ class MessageReceiver extends ReceiverAdapter {
     private void handleSyncPayload(Address src, SyncPayload s) {
 
         System.err.println(s.metadata);
+
         // where missing, we send everything
         Set<String> remoteMissing = syncKV.getTables();
         remoteMissing.removeAll(s.getRemoteTables());
@@ -63,13 +66,13 @@ class MessageReceiver extends ReceiverAdapter {
         bothPresent.retainAll(s.getRemoteTables());
 
         for (String toSyncPartially : bothPresent) {
-            syncTablePartially(src, toSyncPartially);
+            syncTablePartially(src, toSyncPartially, s.getMetadataFor(toSyncPartially));
         }
 
         System.err.println("both present are " + bothPresent);
     }
 
-    private void syncTablePartially(Address src, String toSyncPartially) {
+    private void syncTablePartially(Address src, String toSyncPartially, TableMetadata remoteTableMetadata) {
     }
 
     private void syncTableTotally(Address src, String name) {
@@ -82,6 +85,7 @@ class MessageReceiver extends ReceiverAdapter {
             i++;
             dts.payload.put(key, table.get(key));
 
+            //chunk
             if (i == 200) {
                 try {
                     channel.send(src, dts);

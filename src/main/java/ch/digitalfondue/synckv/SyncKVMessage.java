@@ -29,6 +29,10 @@ public abstract class SyncKVMessage {
         Set<String> getRemoteTables() {
             return metadata.stream().map(TableMetadata::getName).collect(Collectors.toSet());
         }
+
+        public TableMetadata getMetadataFor(String name) {
+            return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
+        }
     }
 
     public static class DataToSync extends SyncKVMessage implements Serializable {
