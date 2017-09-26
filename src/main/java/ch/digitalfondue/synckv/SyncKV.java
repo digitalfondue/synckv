@@ -45,7 +45,7 @@ public class SyncKV {
 
         channel = new JChannel();
         channel.connect(channelName);
-        channel.setReceiver(new MessageReceiver(channel.getAddress(), this));
+        channel.setReceiver(new MessageReceiver(channel, this));
 
         scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 

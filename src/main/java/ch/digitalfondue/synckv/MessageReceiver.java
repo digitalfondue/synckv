@@ -2,6 +2,7 @@ package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.SyncKVMessage.*;
 import org.jgroups.Address;
+import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 
@@ -11,9 +12,11 @@ class MessageReceiver extends ReceiverAdapter {
 
     private final Address currentAddress;
     private final SyncKV syncKV;
+    private final JChannel channel;
 
-    public MessageReceiver(Address currentAddress, SyncKV syncKV) {
-        this.currentAddress = currentAddress;
+    public MessageReceiver(JChannel channel, SyncKV syncKV) {
+        this.currentAddress = channel.getAddress();
+        this.channel = channel;
         this.syncKV = syncKV;
     }
 
