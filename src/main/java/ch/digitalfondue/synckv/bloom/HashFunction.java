@@ -69,7 +69,7 @@ final class HashFunction {
     private int maxValue;
 
     /** Hashing algorithm to use. */
-    private Hash hashFunction;
+    private MurmurHash hashFunction;
 
     /**
      * Constructor.
@@ -89,7 +89,7 @@ final class HashFunction {
 
         this.maxValue = maxValue;
         this.nbHash = nbHash;
-        this.hashFunction = Hash.getInstance(1);
+        this.hashFunction = MurmurHash.getInstance();
         if (this.hashFunction == null)
             throw new IllegalArgumentException("hashType must be known");
     }

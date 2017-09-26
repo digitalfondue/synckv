@@ -66,7 +66,7 @@ public abstract class SyncKVMessage {
         CountingBloomFilter getBloomFilter() {
             try {
                 if (bloomFilter != null) {
-                    CountingBloomFilter cbf = SyncKV.bloomFilterInstance();
+                    CountingBloomFilter cbf = Utils.bloomFilterInstance();
                     cbf.readFields(new DataInputStream(new ByteArrayInputStream(bloomFilter)));
                     return cbf;
                 }

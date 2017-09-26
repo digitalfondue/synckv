@@ -2,7 +2,6 @@ package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import ch.digitalfondue.synckv.bloom.Key;
-import ch.digitalfondue.synckv.bloom.MurmurHash;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.jgroups.JChannel;
@@ -33,7 +32,7 @@ public class SyncKV {
     public SyncKV(String fileName, String channelName) throws Exception {
         store = MVStore.open(fileName);
         store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).forEach(name -> {
-            bloomFilters.putIfAbsent(name, bloomFilterInstance());
+            bloomFilters.putIfAbsent(name, Utils.bloomFilterInstance());
 
             CountingBloomFilter cbf = bloomFilters.get(name);
 
@@ -59,10 +58,6 @@ public class SyncKV {
 
     public Set<String> getTables() {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).collect(Collectors.toSet());
-    }
-
-    static CountingBloomFilter bloomFilterInstance() {
-        return CountingBloomFilter.instance(60000);
     }
 
     private static final byte[] intToByteArray(int value) {
@@ -93,7 +88,7 @@ public class SyncKV {
             throw new IllegalArgumentException(String.format("Table name '%s' cannot contain '__' sequence", tableName));
         }
 
-        bloomFilters.putIfAbsent(tableName, bloomFilterInstance());
+        bloomFilters.putIfAbsent(tableName, Utils.bloomFilterInstance());
 
         return new SyncKVTable(store.openMap(tableName),
                 store.openMap(tableName + "__metadata_hash"),
@@ -122,7 +117,7 @@ public class SyncKV {
         public synchronized byte[] put(String key, byte[] value) {
             byte[] k = key.getBytes(StandardCharsets.UTF_8);
             byte[] kv = Utils.concatenate(k, value);
-            int hash = MurmurHash.hash(kv);
+            int hash = Utils.hash(kv);
 
             byte[] oldRes = table.put(key, value);
             if (oldRes != null) {

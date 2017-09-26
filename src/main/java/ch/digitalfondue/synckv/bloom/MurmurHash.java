@@ -30,19 +30,24 @@ package ch.digitalfondue.synckv.bloom;
  * <p>The C version of MurmurHash 2.0 found at that site was ported
  * to Java by Andrzej Bialecki (ab at getopt org).</p>
  */
-public class MurmurHash extends Hash {
+public class MurmurHash {
     private static MurmurHash _instance = new MurmurHash();
 
-    public static Hash getInstance() {
+    public static MurmurHash getInstance() {
         return _instance;
     }
 
     public static int hash(byte[] data) {
-        return getInstance().hash(data, data.length, -1);
+        return getInstance().hash(data, -1);
     }
 
-    @Override
-    public int hash(byte[] data, int length, int seed) {
+
+    public int hash(byte[] bytes, int initval) {
+        return hash(bytes, bytes.length, initval);
+    }
+
+
+    int hash(byte[] data, int length, int seed) {
         int m = 0x5bd1e995;
         int r = 24;
 
