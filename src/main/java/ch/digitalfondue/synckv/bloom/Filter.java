@@ -1,5 +1,8 @@
 package ch.digitalfondue.synckv.bloom;
 
+// imported from https://github.com/apache/hadoop/tree/master/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/bloom
+// and modified.
+
 /**
  *
  * Copyright (c) 2005, European Commission project OneLab under contract 034819
@@ -73,7 +76,7 @@ import java.util.List;
  * @see Key The general behavior of a key
  * @see HashFunction A hash function
  */
-abstract class Filter implements Writable {
+abstract class Filter {
     private static final int VERSION = -1; // negative to accommodate for old format
     /** The vector size of <i>this</i> filter. */
     protected int vectorSize;
@@ -187,7 +190,7 @@ abstract class Filter implements Writable {
 
     // Writable interface
 
-    @Override
+
     public void write(DataOutput out) throws IOException {
         out.writeInt(VERSION);
         out.writeInt(this.nbHash);
@@ -195,7 +198,7 @@ abstract class Filter implements Writable {
         out.writeInt(this.vectorSize);
     }
 
-    @Override
+
     public void readFields(DataInput in) throws IOException {
         int ver = in.readInt();
         if (ver == VERSION) {

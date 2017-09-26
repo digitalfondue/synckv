@@ -1,5 +1,8 @@
 package ch.digitalfondue.synckv.bloom;
 
+// imported from https://github.com/apache/hadoop/tree/master/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/bloom
+// and modified.
+
 /**
  *
  * Copyright (c) 2005, European Commission project OneLab under contract 034819 (http://www.one-lab.org)
@@ -60,7 +63,7 @@ import java.io.IOException;
  *
  * @see Filter The general behavior of a filter
  */
-public class Key implements WritableComparable<Key> {
+public class Key implements Comparable<Key> {
     /** Byte value of key */
     byte[] bytes;
 
@@ -151,14 +154,14 @@ public class Key implements WritableComparable<Key> {
 
     // Writable
 
-    @Override
+
     public void write(DataOutput out) throws IOException {
         out.writeInt(bytes.length);
         out.write(bytes);
         out.writeDouble(weight);
     }
 
-    @Override
+
     public void readFields(DataInput in) throws IOException {
         this.bytes = new byte[in.readInt()];
         in.readFully(this.bytes);

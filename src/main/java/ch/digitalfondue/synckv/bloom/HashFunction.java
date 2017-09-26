@@ -1,5 +1,8 @@
 package ch.digitalfondue.synckv.bloom;
 
+// imported from https://github.com/apache/hadoop/tree/master/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/bloom
+// and modified.
+
 /**
  *
  * Copyright (c) 2005, European Commission project OneLab under contract 034819
