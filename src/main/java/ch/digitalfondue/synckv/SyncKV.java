@@ -62,7 +62,7 @@ public class SyncKV {
     }
 
     static CountingBloomFilter bloomFilterInstance() {
-        return CountingBloomFilter.instance(120000);
+        return CountingBloomFilter.instance(60000);
     }
 
     private static final byte[] intToByteArray(int value) {

@@ -56,7 +56,7 @@ public abstract class SyncKVMessage {
 
         @Override
         public String toString() {
-            return String.format("TableMetadata{name=%s,count=%d}", name, count);
+            return String.format("TableMetadata{name=%s,count=%d,bloomFilterSize=%d}", name, count, bloomFilter == null ? -1 : bloomFilter.length);
         }
 
         String getName() {

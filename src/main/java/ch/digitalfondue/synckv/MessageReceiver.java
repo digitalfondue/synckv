@@ -42,6 +42,7 @@ class MessageReceiver extends ReceiverAdapter {
 
     private void handleSyncPayload(SyncPayload s) {
 
+        System.err.println(s.metadata);
         // where missing, we send everything
         Set<String> remoteMissing = syncKV.getTables();
         remoteMissing.removeAll(s.getRemoteTables());
