@@ -8,6 +8,7 @@ import org.jgroups.JChannel;
 
 
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -113,6 +114,9 @@ public class SyncKV {
             this.countingBloomFilter = countingBloomFilter;
         }
 
+        public Iterator<String> keys() {
+            return table.keyIterator(table.firstKey());
+        }
 
         public synchronized byte[] put(String key, byte[] value) {
             byte[] k = key.getBytes(StandardCharsets.UTF_8);
