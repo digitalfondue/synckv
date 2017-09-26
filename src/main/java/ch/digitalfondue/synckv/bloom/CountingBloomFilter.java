@@ -53,9 +53,7 @@ package ch.digitalfondue.synckv.bloom;
  */
 
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import java.io.*;
 
 
 /**
@@ -314,5 +312,15 @@ public final class CountingBloomFilter extends Filter {
         for(int i = 0; i < sizeInWords; i++) {
             buckets[i] = in.readLong();
         }
+    }
+
+    public byte[] toByteArray() {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            write(new DataOutputStream(baos));
+        } catch (IOException e) {
+            //silently ignore the issue :°)
+        }
+        return baos.toByteArray();
     }
 }

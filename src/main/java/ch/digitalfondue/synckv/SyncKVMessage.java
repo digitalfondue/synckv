@@ -6,6 +6,7 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,9 +40,9 @@ public abstract class SyncKVMessage {
         final String name;
         final Map<String, byte[]> payload;
 
-        public DataToSync(String name, Map<String, byte[]> payload) {
+        public DataToSync(String name) {
             this.name = name;
-            this.payload = payload;
+            this.payload = new HashMap<>();
         }
     }
 

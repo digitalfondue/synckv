@@ -24,7 +24,7 @@ class SynchronizerMessageSender implements Runnable {
     @Override
     public void run() {
         List<SyncKVMessage.TableMetadata> toSync = store.getMapNames().stream().filter(SyncKV.IS_VALID_PUBLIC_TABLE_NAME)
-                .map(name -> new SyncKVMessage.TableMetadata(name, store.openMap(name).size(), getSerializedBloomFilter(name)))
+                .map(name -> new SyncKVMessage.TableMetadata(name, store.openMap(name).size(), bloomFilters.containsKey(name) ? bloomFilters.get(name).toByteArray() : null))
                 .collect(Collectors.toList());
 
         try {
@@ -34,19 +34,5 @@ class SynchronizerMessageSender implements Runnable {
         }
     }
 
-    private byte[] getSerializedBloomFilter(String name) {
 
-        CountingBloomFilter cbf = bloomFilters.get(name);
-        if(cbf == null) {
-            return null;
-        } else {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try {
-                cbf.write(new DataOutputStream(baos));
-            } catch (IOException e) {
-                //silently ignore the issue :°)
-            }
-            return baos.toByteArray();
-        }
-    }
 }

@@ -1,12 +1,14 @@
 package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.SyncKVMessage.*;
+import ch.digitalfondue.synckv.SyncKV.SyncKVTable;
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
@@ -55,7 +57,7 @@ class MessageReceiver extends ReceiverAdapter {
         // where missing, we send everything
         Set<String> remoteMissing = syncKV.getTables();
         remoteMissing.removeAll(s.getRemoteTables());
-        System.err.println("missing is " + remoteMissing);
+
         for (String toSyncTotally : remoteMissing) {
             syncTableTotally(src, toSyncTotally);
         }
@@ -68,18 +70,27 @@ class MessageReceiver extends ReceiverAdapter {
         for (String toSyncPartially : bothPresent) {
             syncTablePartially(src, toSyncPartially, s.getMetadataFor(toSyncPartially));
         }
-
-        System.err.println("both present are " + bothPresent);
     }
 
     private void syncTablePartially(Address src, String toSyncPartially, TableMetadata remoteTableMetadata) {
+        CountingBloomFilter cbf = remoteTableMetadata.getBloomFilter();
+        SyncKVTable table = syncKV.getTable(toSyncPartially);
+
+        if(Arrays.equals(cbf.toByteArray(), remoteTableMetadata.bloomFilter) &&
+                remoteTableMetadata.count == table.table.size()) {
+            System.err.println(String.format("Table %s has the same content and bloom filter", toSyncPartially));
+            //same content
+        } else {
+            //
+        }
+
     }
 
     private void syncTableTotally(Address src, String name) {
-        SyncKV.SyncKVTable table = syncKV.getTable(name);
+        SyncKVTable table = syncKV.getTable(name);
 
         int i = 0;
-        DataToSync dts = new DataToSync(name, new HashMap<>());
+        DataToSync dts = new DataToSync(name);
         for (Iterator<String> s = table.keys(); s.hasNext(); ) {
             String key = s.next();
             i++;
@@ -89,7 +100,7 @@ class MessageReceiver extends ReceiverAdapter {
             if (i == 200) {
                 try {
                     channel.send(src, dts);
-                    dts = new DataToSync(name, new HashMap<>());
+                    dts = new DataToSync(name);
                 } catch (Exception e) {
                     // ignore
                 }

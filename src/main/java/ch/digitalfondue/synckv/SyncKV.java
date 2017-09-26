@@ -98,10 +98,10 @@ public class SyncKV {
     }
 
     public static class SyncKVTable {
-        private final MVMap<String, byte[]> table;
-        private final MVMap<String, Integer> tableHashMetadata;
+        final MVMap<String, byte[]> table;
+        final MVMap<String, Integer> tableHashMetadata;
         private final MVMap<String, Long> tableTimeMetadata;
-        private final CountingBloomFilter countingBloomFilter;
+        final CountingBloomFilter countingBloomFilter;
 
 
         private SyncKVTable(MVMap<String, byte[]> table,

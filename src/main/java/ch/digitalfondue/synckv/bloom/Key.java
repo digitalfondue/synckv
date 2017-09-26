@@ -75,8 +75,6 @@ public class Key implements Comparable<Key> {
      */
     double weight;
 
-    /** default constructor - use with readFields */
-    public Key() {}
 
     /**
      * Constructor.
@@ -116,24 +114,6 @@ public class Key implements Comparable<Key> {
         return this.bytes;
     }
 
-    /** @return Returns the weight associated to <i>this</i> key. */
-    public double getWeight() {
-        return weight;
-    }
-
-    /**
-     * Increments the weight of <i>this</i> key with a specified value.
-     * @param weight The increment.
-     */
-    public void incrementWeight(double weight) {
-        this.weight += weight;
-    }
-
-    /** Increments the weight of <i>this</i> key by one. */
-    public void incrementWeight() {
-        this.weight++;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof Key)) {
@@ -150,22 +130,6 @@ public class Key implements Comparable<Key> {
         }
         result ^= Double.valueOf(weight).hashCode();
         return result;
-    }
-
-    // Writable
-
-
-    public void write(DataOutput out) throws IOException {
-        out.writeInt(bytes.length);
-        out.write(bytes);
-        out.writeDouble(weight);
-    }
-
-
-    public void readFields(DataInput in) throws IOException {
-        this.bytes = new byte[in.readInt()];
-        in.readFully(this.bytes);
-        weight = in.readDouble();
     }
 
     // Comparable
