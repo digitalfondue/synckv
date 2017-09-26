@@ -1,7 +1,9 @@
 package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
+import ch.digitalfondue.synckv.bloom.Key;
 import ch.digitalfondue.synckv.bloom.MurmurHash;
+import org.jgroups.JChannel;
 
 public class Utils {
 
@@ -22,4 +24,17 @@ public class Utils {
     static int hash(byte[] payload) {
         return MurmurHash.hash(payload);
     }
+
+    static Key toKey(int val) {
+        return new Key(intToByteArray(val));
+    }
+
+    static Key toKey(byte[] val) {
+        return new Key(val);
+    }
+
+    private static final byte[] intToByteArray(int value) {
+        return new byte[]{(byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value};
+    }
+
 }

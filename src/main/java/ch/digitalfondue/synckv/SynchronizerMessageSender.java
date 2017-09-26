@@ -4,7 +4,6 @@ import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.h2.mvstore.MVStore;
 import org.jgroups.JChannel;
 
-import java.io.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -24,14 +23,11 @@ class SynchronizerMessageSender implements Runnable {
     @Override
     public void run() {
         List<SyncKVMessage.TableMetadata> toSync = store.getMapNames().stream().filter(SyncKV.IS_VALID_PUBLIC_TABLE_NAME)
+                .sorted()
                 .map(name -> new SyncKVMessage.TableMetadata(name, store.openMap(name).size(), bloomFilters.containsKey(name) ? bloomFilters.get(name).toByteArray() : null))
                 .collect(Collectors.toList());
 
-        try {
-            channel.send(null, new SyncKVMessage.SyncPayload(toSync));
-        } catch (Exception e) {
-            //silently ignore the issue :°)
-        }
+        SyncKVMessage.broadcast(channel, new SyncKVMessage.SyncPayload(toSync));
     }
 
 

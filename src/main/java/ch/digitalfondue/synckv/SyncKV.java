@@ -37,10 +37,10 @@ public class SyncKV {
 
             CountingBloomFilter cbf = bloomFilters.get(name);
 
-            MVMap<String, Integer> hashes = store.openMap(name + "__metadata_hash");
+            MVMap<String, byte[]> hashes = store.openMap(name + "__metadata_hash");
             //rebuild bloom filter state from data
-            for (Integer hash : hashes.values()) {
-                cbf.add(new Key(intToByteArray(hash)));
+            for (byte[] hash : hashes.values()) {
+                cbf.add(Utils.toKey(hash));
             }
         });
 
@@ -53,17 +53,11 @@ public class SyncKV {
         scheduledExecutor.scheduleAtFixedRate(new SynchronizerMessageSender(store, channel, bloomFilters), 0, 10, TimeUnit.SECONDS);
     }
 
-    public boolean hasTableWithName(String name) {
-        return store.getMapNames().contains(name);
-    }
-
     public Set<String> getTables() {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).collect(Collectors.toSet());
     }
 
-    private static final byte[] intToByteArray(int value) {
-        return new byte[]{(byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value};
-    }
+
 
     public long commit() {
         return store.commit();
@@ -93,23 +87,19 @@ public class SyncKV {
 
         return new SyncKVTable(store.openMap(tableName),
                 store.openMap(tableName + "__metadata_hash"),
-                store.openMap(tableName + "__metadata_time"),
                 bloomFilters.get(tableName));
     }
 
     public static class SyncKVTable {
         final MVMap<String, byte[]> table;
-        final MVMap<String, Integer> tableHashMetadata;
-        private final MVMap<String, Long> tableTimeMetadata;
+        final MVMap<String, byte[]> tableHashMetadata;
         final CountingBloomFilter countingBloomFilter;
 
 
         private SyncKVTable(MVMap<String, byte[]> table,
-                            MVMap<String, Integer> tableHashMetadata,
-                            MVMap<String, Long> tableTimeMetadata,
+                            MVMap<String, byte[]> tableHashMetadata,
                             CountingBloomFilter countingBloomFilter) {
             this.tableHashMetadata = tableHashMetadata;
-            this.tableTimeMetadata = tableTimeMetadata;
             this.table = table;
             this.countingBloomFilter = countingBloomFilter;
         }
@@ -118,20 +108,28 @@ public class SyncKV {
             return table.keyIterator(table.firstKey());
         }
 
-        public synchronized byte[] put(String key, byte[] value) {
+        static int hashFor(String key, byte[] value) {
             byte[] k = key.getBytes(StandardCharsets.UTF_8);
             byte[] kv = Utils.concatenate(k, value);
-            int hash = Utils.hash(kv);
+            return Utils.hash(kv);
+        }
+
+        public boolean present(String key, byte[] value) {
+            byte[] res = tableHashMetadata.get(key);
+            return res == null ? false : Utils.toKey(hashFor(key, value)).equals(Utils.toKey(res));
+        }
+
+        public synchronized byte[] put(String key, byte[] value) {
+            int hash = hashFor(key, value);
 
             byte[] oldRes = table.put(key, value);
             if (oldRes != null) {
-                Key oldKey = new Key(intToByteArray(tableHashMetadata.get(key)));
+                Key oldKey = Utils.toKey(tableHashMetadata.get(key));
                 countingBloomFilter.delete(oldKey);
             }
-
-            tableHashMetadata.put(key, hash);
-            tableTimeMetadata.put(key, System.nanoTime());
-            countingBloomFilter.add(new Key(intToByteArray(hash)));
+            Key newKey = Utils.toKey(hash);
+            tableHashMetadata.put(key, newKey.getBytes());
+            countingBloomFilter.add(newKey);
             return oldRes;
         }
 

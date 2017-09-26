@@ -1,0 +1,4 @@
+- add a distributed get, in case the sync has currently not be done
+- add a distributed put for reducing the amount of full sync
+- add a full check as BloomFilters may provide false positive, sometimes, from time to time broadcast a set of {table [{key,hash}]}
+- convert to java logging :°)

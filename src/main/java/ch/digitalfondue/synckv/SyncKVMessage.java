@@ -1,18 +1,28 @@
 package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
+import org.jgroups.Address;
+import org.jgroups.JChannel;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public abstract class SyncKVMessage {
+
+    static void broadcast(JChannel jChannel, SyncKVMessage msg) {
+        send(jChannel, null, msg);
+    }
+
+    static void send(JChannel jChannel, Address address, SyncKVMessage msg) {
+        try {
+            jChannel.send(address, msg);
+        } catch (Exception e) {
+        }
+    }
 
 
     public static class SyncPayload extends SyncKVMessage implements Serializable {
@@ -45,6 +55,20 @@ public abstract class SyncKVMessage {
             this.payload = new HashMap<>();
         }
     }
+
+    public static class SinglePut extends SyncKVMessage implements Serializable {
+        final String name;
+        final String key;
+        final byte[] payload;
+
+        public SinglePut(String name, String key, byte[] payload) {
+            this.name = name;
+            this.key = key;
+            this.payload = payload;
+        }
+    }
+
+
 
 
     static class TableMetadata implements Serializable {
@@ -79,5 +103,6 @@ public abstract class SyncKVMessage {
             }
             return null;
         }
+
     }
 }
