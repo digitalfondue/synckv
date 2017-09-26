@@ -31,14 +31,11 @@ package ch.digitalfondue.synckv.bloom;
  * to Java by Andrzej Bialecki (ab at getopt org).</p>
  */
 public class MurmurHash {
-    private static MurmurHash _instance = new MurmurHash();
 
-    public static MurmurHash getInstance() {
-        return _instance;
-    }
+    static final MurmurHash HASH = new MurmurHash();
 
     public static int hash(byte[] data) {
-        return getInstance().hash(data, -1);
+        return HASH.hash(data, -1);
     }
 
 

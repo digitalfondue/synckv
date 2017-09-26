@@ -89,9 +89,7 @@ final class HashFunction {
 
         this.maxValue = maxValue;
         this.nbHash = nbHash;
-        this.hashFunction = MurmurHash.getInstance();
-        if (this.hashFunction == null)
-            throw new IllegalArgumentException("hashType must be known");
+        this.hashFunction = MurmurHash.HASH;
     }
 
     /** Clears <i>this</i> hash function. A NOOP */
