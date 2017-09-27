@@ -3,7 +3,13 @@ package ch.digitalfondue.synckv;
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import ch.digitalfondue.synckv.bloom.Key;
 import ch.digitalfondue.synckv.bloom.MurmurHash;
+import org.jgroups.Address;
 import org.jgroups.JChannel;
+import org.jgroups.util.ByteArrayDataInputStream;
+import org.jgroups.util.ByteArrayDataOutputStream;
+import org.jgroups.util.Util;
+
+import java.util.Base64;
 
 public class Utils {
 
@@ -35,6 +41,25 @@ public class Utils {
 
     private static final byte[] intToByteArray(int value) {
         return new byte[]{(byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value};
+    }
+
+
+    static String addressToBase64(Address address) {
+        ByteArrayDataOutputStream out = new ByteArrayDataOutputStream();
+        try {
+            Util.writeAddress(address, out);
+            return Base64.getEncoder().encodeToString(out.getByteBuffer().array());
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    static Address fromBase64(String encoded) {
+        try {
+            return Util.readAddress(new ByteArrayDataInputStream(Base64.getDecoder().decode(encoded)));
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
 }

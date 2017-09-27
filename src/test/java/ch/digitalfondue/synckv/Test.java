@@ -29,10 +29,11 @@ public class Test {
         SyncKV k2 = new SyncKV("test2", "SyncKV");
         SyncKV k3 = new SyncKV("test3", "SyncKV");
 
-        new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
+        if(false) {
+            new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
 
 
-            //if (r.nextBoolean()) {
+                //if (r.nextBoolean()) {
                 String key = UUID.randomUUID().toString();
                 System.err.println("adding in kv with key " + key);
 
@@ -43,8 +44,8 @@ public class Test {
             }*/
 
 
-        }, 20, 20, TimeUnit.SECONDS);
-
+            }, 20, 20, TimeUnit.SECONDS);
+        }
 
     }
 }

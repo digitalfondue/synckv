@@ -4,25 +4,25 @@ import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import ch.digitalfondue.synckv.bloom.Key;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
+import org.jgroups.Address;
 import org.jgroups.JChannel;
 
-
+import java.io.Closeable;
 import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class SyncKV {
+public class SyncKV implements Closeable {
 
-    private final MVStore store;
-    private final ConcurrentHashMap<String, CountingBloomFilter> bloomFilters = new ConcurrentHashMap<>();
-    private final JChannel channel;
+    final MVStore store;
+    final ConcurrentHashMap<String, CountingBloomFilter> bloomFilters = new ConcurrentHashMap<>();
+    final JChannel channel;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
+    final Map<Address, SyncKVMessage.SyncPayloadToLeader> syncPayloads = new ConcurrentHashMap<>();
 
     public SyncKV() throws Exception {
         this(null, "SyncKV");
@@ -46,15 +46,33 @@ public class SyncKV {
 
         channel = new JChannel();
         channel.connect(channelName);
-        channel.setReceiver(new MessageReceiver(channel, this));
+
+
+
+        channel.setReceiver(new MessageReceiver(this));
 
         scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 
-        scheduledExecutor.scheduleAtFixedRate(new SynchronizerMessageSender(store, channel, bloomFilters), 0, 10, TimeUnit.SECONDS);
+        scheduledExecutor.scheduleAtFixedRate(new RequestForSyncPayloadSender(this), 0, 10, TimeUnit.SECONDS);
     }
 
     public Set<String> getTables() {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).collect(Collectors.toSet());
+    }
+
+    List<SyncKVMessage.TableMetadata> getTableMetadataForSync() {
+        return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME)
+                .sorted()
+                .map(this::getTableMetadata)
+                .collect(Collectors.toList());
+    }
+
+    SyncKVMessage.TableMetadata getTableMetadata(String name) {
+        if(store.getMapNames().contains(name)) {
+            return new SyncKVMessage.TableMetadata(name, store.openMap(name).size(), bloomFilters.get(name).toByteArray());
+        } else {
+            return new SyncKVMessage.TableMetadata(name, 0, null);
+        }
     }
 
 
@@ -63,6 +81,7 @@ public class SyncKV {
         return store.commit();
     }
 
+    @Override
     public void close() {
         store.close();
         channel.close();
@@ -87,20 +106,24 @@ public class SyncKV {
 
         return new SyncKVTable(store.openMap(tableName),
                 store.openMap(tableName + "__metadata_hash"),
+                store.openMap(tableName +"__metadata_insert"),
                 bloomFilters.get(tableName));
     }
 
     public static class SyncKVTable {
         final MVMap<String, byte[]> table;
         final MVMap<String, byte[]> tableHashMetadata;
+        final MVMap<String, Long> tableLatestInsertMetadata;
         final CountingBloomFilter countingBloomFilter;
 
 
         private SyncKVTable(MVMap<String, byte[]> table,
                             MVMap<String, byte[]> tableHashMetadata,
+                            MVMap<String, Long> tableLatestInsertMetadata,
                             CountingBloomFilter countingBloomFilter) {
             this.tableHashMetadata = tableHashMetadata;
             this.table = table;
+            this.tableLatestInsertMetadata = tableLatestInsertMetadata;
             this.countingBloomFilter = countingBloomFilter;
         }
 
@@ -129,12 +152,21 @@ public class SyncKV {
             }
             Key newKey = Utils.toKey(hash);
             tableHashMetadata.put(key, newKey.getBytes());
+            tableLatestInsertMetadata.put(key, System.nanoTime());
             countingBloomFilter.add(newKey);
             return oldRes;
         }
 
         public byte[] get(String key) {
             return table.get(key);
+        }
+
+        public long getInsertTime(String key) {
+            return tableLatestInsertMetadata.get(key);
+        }
+
+        public boolean isNewer(String k, long time) {
+            return time > getInsertTime(k);
         }
     }
 }

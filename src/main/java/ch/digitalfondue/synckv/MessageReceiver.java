@@ -1,7 +1,7 @@
 package ch.digitalfondue.synckv;
 
-import ch.digitalfondue.synckv.SyncKVMessage.*;
 import ch.digitalfondue.synckv.SyncKV.SyncKVTable;
+import ch.digitalfondue.synckv.SyncKVMessage.*;
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.h2.mvstore.MVMap;
 import org.jgroups.Address;
@@ -9,9 +9,8 @@ import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
 class MessageReceiver extends ReceiverAdapter {
@@ -19,11 +18,14 @@ class MessageReceiver extends ReceiverAdapter {
     private final Address currentAddress;
     private final SyncKV syncKV;
     private final JChannel channel;
+    private final Map<Address, SyncPayloadToLeader> syncPayloads;
+    private final AtomicLong lastDataSync = new AtomicLong();
 
-    public MessageReceiver(JChannel channel, SyncKV syncKV) {
-        this.currentAddress = channel.getAddress();
-        this.channel = channel;
+    public MessageReceiver(SyncKV syncKV) {
+        this.currentAddress = syncKV.channel.getAddress();
+        this.channel = syncKV.channel;
         this.syncKV = syncKV;
+        this.syncPayloads = syncKV.syncPayloads;
     }
 
     @Override
@@ -33,14 +35,58 @@ class MessageReceiver extends ReceiverAdapter {
             return;
         }
 
-        //
-        Object payload = msg.getObject();
+        try {
+            //
+            Object payload = msg.getObject();
 
-        System.err.println(String.format("%s: received message %s", currentAddress.toString(), payload));
-        if (payload instanceof SyncPayload) {
-            handleSyncPayload(msg.src(), (SyncPayload) payload);
-        } else if (payload instanceof DataToSync) {
-            handleDataToSync((DataToSync) payload);
+            System.err.println(String.format("%s: received message %s", currentAddress.toString(), payload));
+            if (payload instanceof SyncPayload) {
+                handleSyncPayload(msg.src(), (SyncPayload) payload);
+            } else if (payload instanceof DataToSync) {
+                handleDataToSync((DataToSync) payload);
+                lastDataSync.set(System.currentTimeMillis());
+            } else if (payload instanceof RequestForSyncPayload) {
+                handleRequestForSyncPayload(msg.src());
+            } else if (payload instanceof SyncPayloadToLeader) {
+                handleSyncPayloadForLeader(msg.src(), (SyncPayloadToLeader) payload);
+            } else if (payload instanceof SyncPayloadFrom) {
+                handleSyncPayloadFrom((SyncPayloadFrom) payload);
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    private void handleSyncPayloadFrom(SyncPayloadFrom payload) {
+        if(System.currentTimeMillis() - lastDataSync.get() <= 10*1000) {
+            System.err.println("Ignore handleSyncPayloadFrom as we had a sync 10s before");
+            return;
+        }
+
+        payload.addressesAndTables.forEach((encodedAddress, tables) -> {
+            Address target = Utils.fromBase64(encodedAddress);
+            List<TableMetadata> tableMetadata = new ArrayList<>();
+            Set<String> fullSync = new HashSet<>();
+            tables.forEach(t -> {
+                tableMetadata.add(syncKV.getTableMetadata(t.table));
+                if (t.fullSync) {
+                    fullSync.add(t.table);
+                }
+            });
+            SyncKVMessage.send(channel, target, new SyncPayload(tableMetadata, fullSync));
+        });
+    }
+
+    private void handleSyncPayloadForLeader(Address src, SyncPayloadToLeader payload) {
+        syncPayloads.put(src, payload);
+    }
+
+    private void handleRequestForSyncPayload(Address leader) {
+
+        if(System.currentTimeMillis() - lastDataSync.get() > 10*1000) {
+            SyncKVMessage.send(channel, leader, new SyncKVMessage.SyncPayloadToLeader(syncKV.getTableMetadataForSync()));
+        } else {
+            System.err.println("Ignore handleRequestForSyncPayload, as we had a sync 10s before");
         }
     }
 
@@ -48,9 +94,9 @@ class MessageReceiver extends ReceiverAdapter {
         System.err.println(String.format("%s: syncing table %s adding %d items", currentAddress.toString(), payload.name, payload.payload.size()));
         SyncKV.SyncKVTable table = syncKV.getTable(payload.name);
         payload.payload.forEach((k, v) -> {
-            if(!table.present(k,v)) {
+            if (!table.present(k, v.payload) || table.isNewer(k, v.time)) {
                 System.err.println(String.format("%s: adding key %s", currentAddress.toString(), k));
-                table.put(k, v);
+                table.put(k, v.payload);
             } else {
                 System.err.println(String.format("%s: key %s is already present", currentAddress.toString(), k));
             }
@@ -60,24 +106,15 @@ class MessageReceiver extends ReceiverAdapter {
 
 
     private void handleSyncPayload(Address src, SyncPayload s) {
-
-        System.err.println(s.metadata);
-
-        // where missing, we send everything
-        Set<String> remoteMissing = syncKV.getTables();
-        remoteMissing.removeAll(s.getRemoteTables());
-
-        for (String toSyncTotally : remoteMissing) {
-            syncTableTotally(src, toSyncTotally);
-        }
-
-
-        // where both present, we use the remote bloom filter to send only the one that are _not_ present -> obviously before we check that count and bloom filter are not equals!
-        Set<String> bothPresent = syncKV.getTables();
-        bothPresent.retainAll(s.getRemoteTables());
-
-        for (String toSyncPartially : bothPresent) {
-            syncTablePartially(src, toSyncPartially, s.getMetadataFor(toSyncPartially));
+        System.err.println(currentAddress + ": Handle sync payload " + s);
+        for (String table : s.getRemoteTables()) {
+            if (s.fullSync.contains(table)) {
+                System.err.println("Sync totally " + table);
+                syncTableTotally(src, table);
+            } else {
+                System.err.println("Sync partially " + table);
+                syncTablePartially(src, table, s.getMetadataFor(table));
+            }
         }
     }
 
@@ -104,7 +141,7 @@ class MessageReceiver extends ReceiverAdapter {
             String key = s.next();
             if (conditionToAdd.test(key)) {
                 i++;
-                dts.payload.put(key, table.get(key));
+                dts.payload.put(key, new PayloadAndTime(table.get(key), table.getInsertTime(key)));
             }
 
             //chunk

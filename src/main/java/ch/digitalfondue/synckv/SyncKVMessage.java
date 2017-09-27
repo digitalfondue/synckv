@@ -21,20 +21,40 @@ public abstract class SyncKVMessage {
         try {
             jChannel.send(address, msg);
         } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
+    public static class RequestForSyncPayload extends SyncKVMessage implements Serializable {
+    }
 
-    public static class SyncPayload extends SyncKVMessage implements Serializable {
+    public static class SyncPayloadToLeader extends SyncKVMessage implements Serializable {
         final List<TableMetadata> metadata;
 
-        public SyncPayload(List<TableMetadata> metadata) {
+        public SyncPayloadToLeader(List<TableMetadata> metadata) {
             this.metadata = metadata;
         }
 
         @Override
         public String toString() {
-            return String.format("SyncPayload{metadata=%s}", metadata);
+            return String.format("SyncPayloadToLeader{metadata=%s}", metadata);
+        }
+    }
+
+
+
+    public static class SyncPayload extends SyncKVMessage implements Serializable {
+        final List<TableMetadata> metadata;
+        final Set<String> fullSync;
+
+        public SyncPayload(List<TableMetadata> metadata, Set<String> fullSync) {
+            this.metadata = metadata;
+            this.fullSync = fullSync;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("SyncPayload{metadata=%s, fullSync=%s}", metadata, fullSync);
         }
 
         Set<String> getRemoteTables() {
@@ -46,9 +66,45 @@ public abstract class SyncKVMessage {
         }
     }
 
+    public static class SyncPayloadFrom extends SyncKVMessage implements Serializable {
+
+        final Map<String, List<TableAddress>> addressesAndTables = new HashMap<>();
+
+        public SyncPayloadFrom(List<TableAddress> tables) {
+            tables.stream().forEach(ta -> {
+                if(!addressesAndTables.containsKey(ta.addressEncoded)) {
+                    addressesAndTables.put(ta.addressEncoded, new ArrayList<>());
+                }
+                addressesAndTables.get(ta.addressEncoded).add(ta);
+            });
+        }
+
+        @Override
+        public String toString() {
+            return String.format("SyncPayloadFrom {addressesAndTables=%s}", addressesAndTables);
+        }
+    }
+
+    public static class TableAddress implements Serializable {
+        final String table;
+        final String addressEncoded;
+        final boolean fullSync;
+
+        public TableAddress(String table, Address address, boolean fullSync) {
+            this.table = table;
+            this.addressEncoded = Utils.addressToBase64(address);
+            this.fullSync = fullSync;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("TableAddress{table=%s, address=%s, fullSync=%s}", table, Utils.fromBase64(addressEncoded).toString(), Boolean.toString(fullSync));
+        }
+    }
+
     public static class DataToSync extends SyncKVMessage implements Serializable {
         final String name;
-        final Map<String, byte[]> payload;
+        final Map<String, PayloadAndTime> payload;
 
         public DataToSync(String name) {
             this.name = name;
@@ -56,20 +112,15 @@ public abstract class SyncKVMessage {
         }
     }
 
-    public static class SinglePut extends SyncKVMessage implements Serializable {
-        final String name;
-        final String key;
+    public static class PayloadAndTime implements Serializable {
         final byte[] payload;
+        final long time;
 
-        public SinglePut(String name, String key, byte[] payload) {
-            this.name = name;
-            this.key = key;
+        public PayloadAndTime(byte[] payload, long time) {
             this.payload = payload;
+            this.time = time;
         }
     }
-
-
-
 
     static class TableMetadata implements Serializable {
 
