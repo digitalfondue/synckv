@@ -90,17 +90,21 @@ public class RequestForSyncPayloadSender implements Runnable {
                     tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, toFetch, true));
                 } else {
                     //handle case where table is present
+                    byte[] cbf = workingCopy.get(a).getMetadataFor(name).bloomFilter;
 
-                    // for each table -> pick a random one that everybody else must sync bidirectionally to it? (if count > 1 obviously!)
-                    //FIXME
+                    //find the first table where the bloom filter is not equal
+                    tablePresenceCollapsed.get(name).stream()
+                            .filter(remote -> !remote.address.equals(a))
+                            .filter(remote -> !Arrays.equals(remote.bloomFilter, cbf))
+                            .findFirst().ifPresent(remote -> tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, remote.address, false))
+                    );
                 }
             }
         }
 
-        System.err.println(channel.getAddress()+": Tables to sync is " + tablesToSync);
         tablesToSync.entrySet().stream().filter(kv -> !kv.getValue().isEmpty()).forEach(kv -> {
-            System.err.println(channel.getAddress()+": Sending SyncPayloadFrom to " + kv.getKey());
             SyncKVMessage.send(channel, kv.getKey(), new SyncKVMessage.SyncPayloadFrom(kv.getValue()));
         });
+
     }
 }

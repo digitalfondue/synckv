@@ -21,6 +21,7 @@ public abstract class SyncKVMessage {
         try {
             jChannel.send(address, msg);
         } catch (Exception e) {
+            //FIXME use java logging
             e.printStackTrace();
         }
     }
@@ -35,9 +36,8 @@ public abstract class SyncKVMessage {
             this.metadata = metadata;
         }
 
-        @Override
-        public String toString() {
-            return String.format("SyncPayloadToLeader{metadata=%s}", metadata);
+        public TableMetadata getMetadataFor(String name) {
+            return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
         }
     }
 
@@ -50,11 +50,6 @@ public abstract class SyncKVMessage {
         public SyncPayload(List<TableMetadata> metadata, Set<String> fullSync) {
             this.metadata = metadata;
             this.fullSync = fullSync;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("SyncPayload{metadata=%s, fullSync=%s}", metadata, fullSync);
         }
 
         Set<String> getRemoteTables() {
@@ -78,11 +73,6 @@ public abstract class SyncKVMessage {
                 addressesAndTables.get(ta.addressEncoded).add(ta);
             });
         }
-
-        @Override
-        public String toString() {
-            return String.format("SyncPayloadFrom {addressesAndTables=%s}", addressesAndTables);
-        }
     }
 
     public static class TableAddress implements Serializable {
@@ -94,11 +84,6 @@ public abstract class SyncKVMessage {
             this.table = table;
             this.addressEncoded = Utils.addressToBase64(address);
             this.fullSync = fullSync;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("TableAddress{table=%s, address=%s, fullSync=%s}", table, Utils.fromBase64(addressEncoded).toString(), Boolean.toString(fullSync));
         }
     }
 
@@ -132,11 +117,6 @@ public abstract class SyncKVMessage {
             this.name = name;
             this.count = count;
             this.bloomFilter = bloomFilter;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("TableMetadata{name=%s,count=%d,bloomFilterSize=%d}", name, count, bloomFilter == null ? -1 : bloomFilter.length);
         }
 
         String getName() {
