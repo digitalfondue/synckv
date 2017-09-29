@@ -106,7 +106,7 @@ class RequestForSyncPayloadSender implements Runnable {
         }
 
         tablesToSync.entrySet().stream().filter(kv -> !kv.getValue().isEmpty()).forEach(kv -> {
-            SyncKVMessage.send(rpcDispatcher, kv.getKey(), new SyncKVMessage.SyncPayloadFrom(Utils.addressToBase64(channel), kv.getValue()));
+            SyncKVMessage.send(rpcDispatcher, kv.getKey(), MessageReceiver.syncPayloadFromMethodCall(kv.getValue()));
         });
 
     }

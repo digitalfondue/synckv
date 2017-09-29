@@ -40,8 +40,8 @@ public class MessageReceiver {
     public void receive(SyncKVMessage payload) {
 
         Address srcAddress = Utils.fromBase64(payload.src);
-        // ignore messages sent to itself, except if they are of the type "SyncPayloadFrom" (that are internally dispatched by RequestForSyncPayloadSender)
-        if (!(payload instanceof SyncPayloadFrom) && getCurrentAddress().equals(srcAddress)) {
+        // ignore messages sent to itself
+        if (getCurrentAddress().equals(srcAddress)) {
             return;
         }
 
@@ -55,33 +55,45 @@ public class MessageReceiver {
                 handleRequestForSyncPayload(srcAddress);
             } else if (payload instanceof SyncPayloadToLeader) {
                 handleSyncPayloadForLeader(srcAddress, (SyncPayloadToLeader) payload);
-            } else if (payload instanceof SyncPayloadFrom) {
-                handleSyncPayloadFrom((SyncPayloadFrom) payload);
             }
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
 
-    public static MethodCall putRequestMethodCall(String table, String key, byte[] value) {
-        return new MethodCall("handlePutRequest", new Object[]{table, key, value}, new Class[]{String.class, String.class, byte[].class});
-    }
-
-    public void handlePutRequest(String table, String key, byte[] value) {
-        System.err.println("called remotely handlePutRequest");
-        syncKV.getTable(table).put(key, value, false);
-    }
-
     private boolean canIgnoreMessage() {
         return System.currentTimeMillis() - lastDataSync.get() <= 10 * 500;
     }
 
-    private void handleSyncPayloadFrom(SyncPayloadFrom payload) {
+    static MethodCall putRequestMethodCall(String table, String key, byte[] value) {
+        return new MethodCall("handlePutRequest", new Object[]{table, key, value}, new Class[]{String.class, String.class, byte[].class});
+    }
+
+    public void handlePutRequest(String table, String key, byte[] value) {
+        syncKV.getTable(table).put(key, value, false);
+    }
+
+
+
+
+    static MethodCall syncPayloadFromMethodCall(List<TableAddress> remote) {
+        return new MethodCall("handleSyncPayloadFrom", new Object[]{remote}, new Class[]{List.class});
+    }
+
+    public void handleSyncPayloadFrom(List<TableAddress> remote) {
         if (canIgnoreMessage()) {
             return;
         }
 
-        payload.addressesAndTables.forEach((encodedAddress, tables) -> {
+        Map<String, List<TableAddress>> addressesAndTables = new HashMap<>();
+        remote.stream().forEach(ta -> {
+            if(!addressesAndTables.containsKey(ta.addressEncoded)) {
+                addressesAndTables.put(ta.addressEncoded, new ArrayList<>());
+            }
+            addressesAndTables.get(ta.addressEncoded).add(ta);
+        });
+
+        addressesAndTables.forEach((encodedAddress, tables) -> {
             Address target = Utils.fromBase64(encodedAddress);
             List<TableMetadata> tableMetadata = new ArrayList<>();
             Set<String> fullSync = new HashSet<>();

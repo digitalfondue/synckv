@@ -47,6 +47,15 @@ abstract class SyncKVMessage implements Serializable {
         }
     }
 
+    static void send(RpcDispatcher rpcDispatcher, Address address, MethodCall call) {
+        try {
+            rpcDispatcher.callRemoteMethod(address, call, RequestOptions.ASYNC());
+        } catch (Exception e) {
+            //FIXME use java logging
+            e.printStackTrace();
+        }
+    }
+
     static void send(RpcDispatcher rpcDispatcher, Address address, SyncKVMessage msg) {
         try {
             rpcDispatcher.callRemoteMethod(address, "receive", new Object[] {msg}, new Class[]{SyncKVMessage.class}, RequestOptions.ASYNC());
@@ -91,21 +100,6 @@ abstract class SyncKVMessage implements Serializable {
 
         TableMetadata getMetadataFor(String name) {
             return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
-        }
-    }
-
-    static class SyncPayloadFrom extends SyncKVMessage implements Serializable {
-
-        final Map<String, List<TableAddress>> addressesAndTables = new HashMap<>();
-
-        SyncPayloadFrom(String src, List<TableAddress> tables) {
-            super(src);
-            tables.stream().forEach(ta -> {
-                if(!addressesAndTables.containsKey(ta.addressEncoded)) {
-                    addressesAndTables.put(ta.addressEncoded, new ArrayList<>());
-                }
-                addressesAndTables.get(ta.addressEncoded).add(ta);
-            });
         }
     }
 
