@@ -21,7 +21,7 @@ class MessageReceiver extends ReceiverAdapter {
     private final Map<Address, SyncPayloadToLeader> syncPayloads;
     private final AtomicLong lastDataSync = new AtomicLong();
 
-    public MessageReceiver(SyncKV syncKV) {
+    MessageReceiver(SyncKV syncKV) {
         this.currentAddress = syncKV.channel.getAddress();
         this.channel = syncKV.channel;
         this.syncKV = syncKV;

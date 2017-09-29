@@ -5,13 +5,13 @@ import org.jgroups.JChannel;
 
 import java.util.*;
 
-public class RequestForSyncPayloadSender implements Runnable {
+class RequestForSyncPayloadSender implements Runnable {
 
     private final JChannel channel;
     private final Map<Address, SyncKVMessage.SyncPayloadToLeader> syncPayloads;
     private final SyncKV syncKV;
 
-    public RequestForSyncPayloadSender(SyncKV syncKV) {
+    RequestForSyncPayloadSender(SyncKV syncKV) {
         this.channel = syncKV.channel;
         this.syncPayloads = syncKV.syncPayloads;
         this.syncKV = syncKV;

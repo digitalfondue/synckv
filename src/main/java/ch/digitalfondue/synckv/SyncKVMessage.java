@@ -11,7 +11,7 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public abstract class SyncKVMessage {
+abstract class SyncKVMessage {
 
     static void broadcast(JChannel jChannel, SyncKVMessage msg) {
         send(jChannel, null, msg);
@@ -26,28 +26,28 @@ public abstract class SyncKVMessage {
         }
     }
 
-    public static class RequestForSyncPayload extends SyncKVMessage implements Serializable {
+    static class RequestForSyncPayload extends SyncKVMessage implements Serializable {
     }
 
-    public static class SyncPayloadToLeader extends SyncKVMessage implements Serializable {
+    static class SyncPayloadToLeader extends SyncKVMessage implements Serializable {
         final List<TableMetadata> metadata;
 
-        public SyncPayloadToLeader(List<TableMetadata> metadata) {
+        SyncPayloadToLeader(List<TableMetadata> metadata) {
             this.metadata = metadata;
         }
 
-        public TableMetadata getMetadataFor(String name) {
+        TableMetadata getMetadataFor(String name) {
             return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
         }
     }
 
 
 
-    public static class SyncPayload extends SyncKVMessage implements Serializable {
+    static class SyncPayload extends SyncKVMessage implements Serializable {
         final List<TableMetadata> metadata;
         final Set<String> fullSync;
 
-        public SyncPayload(List<TableMetadata> metadata, Set<String> fullSync) {
+        SyncPayload(List<TableMetadata> metadata, Set<String> fullSync) {
             this.metadata = metadata;
             this.fullSync = fullSync;
         }
@@ -56,16 +56,16 @@ public abstract class SyncKVMessage {
             return metadata.stream().map(TableMetadata::getName).collect(Collectors.toSet());
         }
 
-        public TableMetadata getMetadataFor(String name) {
+        TableMetadata getMetadataFor(String name) {
             return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
         }
     }
 
-    public static class SyncPayloadFrom extends SyncKVMessage implements Serializable {
+    static class SyncPayloadFrom extends SyncKVMessage implements Serializable {
 
         final Map<String, List<TableAddress>> addressesAndTables = new HashMap<>();
 
-        public SyncPayloadFrom(List<TableAddress> tables) {
+        SyncPayloadFrom(List<TableAddress> tables) {
             tables.stream().forEach(ta -> {
                 if(!addressesAndTables.containsKey(ta.addressEncoded)) {
                     addressesAndTables.put(ta.addressEncoded, new ArrayList<>());
@@ -75,33 +75,33 @@ public abstract class SyncKVMessage {
         }
     }
 
-    public static class TableAddress implements Serializable {
+    static class TableAddress implements Serializable {
         final String table;
         final String addressEncoded;
         final boolean fullSync;
 
-        public TableAddress(String table, Address address, boolean fullSync) {
+        TableAddress(String table, Address address, boolean fullSync) {
             this.table = table;
             this.addressEncoded = Utils.addressToBase64(address);
             this.fullSync = fullSync;
         }
     }
 
-    public static class DataToSync extends SyncKVMessage implements Serializable {
+    static class DataToSync extends SyncKVMessage implements Serializable {
         final String name;
         final Map<String, PayloadAndTime> payload;
 
-        public DataToSync(String name) {
+        DataToSync(String name) {
             this.name = name;
             this.payload = new HashMap<>();
         }
     }
 
-    public static class PayloadAndTime implements Serializable {
+    static class PayloadAndTime implements Serializable {
         final byte[] payload;
         final long time;
 
-        public PayloadAndTime(byte[] payload, long time) {
+        PayloadAndTime(byte[] payload, long time) {
             this.payload = payload;
             this.time = time;
         }

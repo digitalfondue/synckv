@@ -11,7 +11,7 @@ import org.jgroups.util.Util;
 
 import java.util.Base64;
 
-public class Utils {
+class Utils {
 
     static byte[] concatenate(byte[] a, byte[] b) {
         int aLen = a.length;
