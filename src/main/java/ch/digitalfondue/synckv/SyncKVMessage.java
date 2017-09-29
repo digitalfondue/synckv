@@ -1,18 +1,11 @@
 package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
-import org.jgroups.Address;
-import org.jgroups.JChannel;
-import org.jgroups.blocks.MethodCall;
-import org.jgroups.blocks.RequestOptions;
-import org.jgroups.blocks.RpcDispatcher;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.*;
-import java.util.stream.Collectors;
 
 abstract class SyncKVMessage  {
 
@@ -23,9 +16,9 @@ abstract class SyncKVMessage  {
         final String addressEncoded;
         final boolean fullSync;
 
-        TableAddress(String table, Address address, boolean fullSync) {
+        TableAddress(String table, String addressEncoded, boolean fullSync) {
             this.table = table;
-            this.addressEncoded = Utils.addressToBase64(address);
+            this.addressEncoded = addressEncoded;
             this.fullSync = fullSync;
         }
     }

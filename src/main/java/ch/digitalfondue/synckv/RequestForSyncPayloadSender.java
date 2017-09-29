@@ -90,7 +90,7 @@ class RequestForSyncPayloadSender implements Runnable {
                 if(!tablePresence.get(name).contains(a)) {
                     //missing table in the current address
                     Address toFetch = tablePresenceCollapsed.get(name).stream().findFirst().orElseThrow(IllegalStateException::new).address;
-                    tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, toFetch, true));
+                    tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, Utils.addressToBase64(toFetch), true));
                 } else {
                     //handle case where table is present
                     byte[] cbf = workingCopy.get(a).stream().filter(s -> s.name.equals(name)).findFirst().orElse(null).bloomFilter;
@@ -99,7 +99,7 @@ class RequestForSyncPayloadSender implements Runnable {
                     tablePresenceCollapsed.get(name).stream()
                             .filter(remote -> !remote.address.equals(a))
                             .filter(remote -> !Arrays.equals(remote.bloomFilter, cbf))
-                            .findFirst().ifPresent(remote -> tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, remote.address, false))
+                            .findFirst().ifPresent(remote -> tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, Utils.addressToBase64(remote.address), false))
                     );
                 }
             }
