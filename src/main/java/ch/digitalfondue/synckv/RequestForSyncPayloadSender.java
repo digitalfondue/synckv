@@ -8,7 +8,7 @@ import java.util.*;
 class RequestForSyncPayloadSender implements Runnable {
 
     private final JChannel channel;
-    private final Map<Address, List<SyncKVMessage.TableMetadata>> syncPayloads;
+    private final Map<Address, List<TableMetadata>> syncPayloads;
     private final SyncKV syncKV;
 
     RequestForSyncPayloadSender(SyncKV syncKV) {
@@ -52,7 +52,7 @@ class RequestForSyncPayloadSender implements Runnable {
 
     //given the currently present sync payload request, route the requests correctly between the elements of the cluster
     private void processRequestForSync() {
-        Map<Address, List<SyncKVMessage.TableMetadata>> workingCopy = new HashMap<>(syncPayloads);
+        Map<Address, List<TableMetadata>> workingCopy = new HashMap<>(syncPayloads);
         syncPayloads.clear();
 
         // add own copy
@@ -62,7 +62,7 @@ class RequestForSyncPayloadSender implements Runnable {
         //
         Map<String, Set<AddressBloomFilter>> tablePresenceCollapsed = new HashMap<>();
         Map<String, Set<Address>> tablePresence = new HashMap<>();
-        for (Map.Entry<Address, List<SyncKVMessage.TableMetadata>> e : workingCopy.entrySet()) {
+        for (Map.Entry<Address, List<TableMetadata>> e : workingCopy.entrySet()) {
             e.getValue().stream().forEach(tm -> {
 
                 if (!tablePresenceCollapsed.containsKey(tm.getName())) {
@@ -78,7 +78,7 @@ class RequestForSyncPayloadSender implements Runnable {
             });
         }
 
-        Map<Address, List<SyncKVMessage.TableAddress>> tablesToSync = new HashMap<>();
+        Map<Address, List<TableAddress>> tablesToSync = new HashMap<>();
 
         // for each address -> check what table is missing
         for (Address a : workingCopy.keySet()) {
@@ -87,7 +87,7 @@ class RequestForSyncPayloadSender implements Runnable {
                 if(!tablePresence.get(name).contains(a)) {
                     //missing table in the current address
                     Address toFetch = tablePresenceCollapsed.get(name).stream().findFirst().orElseThrow(IllegalStateException::new).address;
-                    tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, Utils.addressToBase64(toFetch), true));
+                    tablesToSync.get(a).add(new TableAddress(name, Utils.addressToBase64(toFetch), true));
                 } else {
                     //handle case where table is present
                     byte[] cbf = workingCopy.get(a).stream().filter(s -> s.name.equals(name)).findFirst().orElse(null).bloomFilter;
@@ -96,7 +96,7 @@ class RequestForSyncPayloadSender implements Runnable {
                     tablePresenceCollapsed.get(name).stream()
                             .filter(remote -> !remote.address.equals(a))
                             .filter(remote -> !Arrays.equals(remote.bloomFilter, cbf))
-                            .findFirst().ifPresent(remote -> tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, Utils.addressToBase64(remote.address), false))
+                            .findFirst().ifPresent(remote -> tablesToSync.get(a).add(new TableAddress(name, Utils.addressToBase64(remote.address), false))
                     );
                 }
             }

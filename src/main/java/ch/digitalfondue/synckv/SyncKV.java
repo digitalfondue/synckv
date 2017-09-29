@@ -23,7 +23,7 @@ public class SyncKV implements Closeable {
     final ConcurrentHashMap<String, CountingBloomFilter> bloomFilters = new ConcurrentHashMap<>();
     final JChannel channel;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
-    final Map<Address, List<SyncKVMessage.TableMetadata>> syncPayloads = new ConcurrentHashMap<>();
+    final Map<Address, List<TableMetadata>> syncPayloads = new ConcurrentHashMap<>();
     final RpcFacade rpcFacade;
 
     public SyncKV() throws Exception {
@@ -62,18 +62,18 @@ public class SyncKV implements Closeable {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).collect(Collectors.toSet());
     }
 
-    List<SyncKVMessage.TableMetadata> getTableMetadataForSync() {
+    List<TableMetadata> getTableMetadataForSync() {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME)
                 .sorted()
                 .map(this::getTableMetadata)
                 .collect(Collectors.toList());
     }
 
-    SyncKVMessage.TableMetadata getTableMetadata(String name) {
+    TableMetadata getTableMetadata(String name) {
         if(store.getMapNames().contains(name)) {
-            return new SyncKVMessage.TableMetadata(name, store.openMap(name).size(), bloomFilters.get(name).toByteArray());
+            return new TableMetadata(name, store.openMap(name).size(), bloomFilters.get(name).toByteArray());
         } else {
-            return new SyncKVMessage.TableMetadata(name, 0, null);
+            return new TableMetadata(name, 0, null);
         }
     }
 

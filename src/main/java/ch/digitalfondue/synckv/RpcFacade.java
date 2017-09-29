@@ -1,7 +1,6 @@
 package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.SyncKV.SyncKVTable;
-import ch.digitalfondue.synckv.SyncKVMessage.*;
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.h2.mvstore.MVMap;
 import org.jgroups.Address;
