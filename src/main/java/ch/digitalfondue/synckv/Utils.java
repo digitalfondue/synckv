@@ -44,6 +44,10 @@ class Utils {
     }
 
 
+    static String addressToBase64(JChannel channel) {
+        return addressToBase64(channel.getAddress());
+    }
+
     static String addressToBase64(Address address) {
         ByteArrayDataOutputStream out = new ByteArrayDataOutputStream();
         try {

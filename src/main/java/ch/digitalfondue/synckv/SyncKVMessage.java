@@ -2,7 +2,8 @@ package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.jgroups.Address;
-import org.jgroups.JChannel;
+import org.jgroups.blocks.RequestOptions;
+import org.jgroups.blocks.RpcDispatcher;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -11,15 +12,32 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-abstract class SyncKVMessage {
+abstract class SyncKVMessage implements Serializable {
 
-    static void broadcast(JChannel jChannel, SyncKVMessage msg) {
-        send(jChannel, null, msg);
+
+    final String src;
+
+    //for serialization!
+    public SyncKVMessage() {
+        this.src = null;
     }
 
-    static void send(JChannel jChannel, Address address, SyncKVMessage msg) {
+    protected SyncKVMessage(String src) {
+        this.src = src;
+    }
+
+    static void broadcast(RpcDispatcher rpcDispatcher, SyncKVMessage msg) {
         try {
-            jChannel.send(address, msg);
+            rpcDispatcher.callRemoteMethods(null, "receive", new Object[]{msg}, new Class[]{SyncKVMessage.class}, RequestOptions.ASYNC());
+        } catch (Exception e) {
+            //FIXME use java logging
+            e.printStackTrace();
+        }
+    }
+
+    static void send(RpcDispatcher rpcDispatcher, Address address, SyncKVMessage msg) {
+        try {
+            rpcDispatcher.callRemoteMethod(address, "receive", new Object[] {msg}, new Class[]{SyncKVMessage.class}, RequestOptions.ASYNC());
         } catch (Exception e) {
             //FIXME use java logging
             e.printStackTrace();
@@ -27,12 +45,16 @@ abstract class SyncKVMessage {
     }
 
     static class RequestForSyncPayload extends SyncKVMessage implements Serializable {
+        RequestForSyncPayload(String src) {
+            super(src);
+        }
     }
 
     static class SyncPayloadToLeader extends SyncKVMessage implements Serializable {
         final List<TableMetadata> metadata;
 
-        SyncPayloadToLeader(List<TableMetadata> metadata) {
+        SyncPayloadToLeader(String src, List<TableMetadata> metadata) {
+            super(src);
             this.metadata = metadata;
         }
 
@@ -47,7 +69,8 @@ abstract class SyncKVMessage {
         final String key;
         final byte[] payload;
 
-        PutRequest(String table, String key, byte[] payload) {
+        PutRequest(String src, String table, String key, byte[] payload) {
+            super(src);
             this.table = table;
             this.key = key;
             this.payload = payload;
@@ -58,7 +81,8 @@ abstract class SyncKVMessage {
         final List<TableMetadata> metadata;
         final Set<String> fullSync;
 
-        SyncPayload(List<TableMetadata> metadata, Set<String> fullSync) {
+        SyncPayload(String src, List<TableMetadata> metadata, Set<String> fullSync) {
+            super(src);
             this.metadata = metadata;
             this.fullSync = fullSync;
         }
@@ -76,7 +100,8 @@ abstract class SyncKVMessage {
 
         final Map<String, List<TableAddress>> addressesAndTables = new HashMap<>();
 
-        SyncPayloadFrom(List<TableAddress> tables) {
+        SyncPayloadFrom(String src, List<TableAddress> tables) {
+            super(src);
             tables.stream().forEach(ta -> {
                 if(!addressesAndTables.containsKey(ta.addressEncoded)) {
                     addressesAndTables.put(ta.addressEncoded, new ArrayList<>());
@@ -102,7 +127,8 @@ abstract class SyncKVMessage {
         final String name;
         final Map<String, PayloadAndTime> payload;
 
-        DataToSync(String name) {
+        DataToSync(String src, String name) {
+            super(src);
             this.name = name;
             this.payload = new HashMap<>();
         }

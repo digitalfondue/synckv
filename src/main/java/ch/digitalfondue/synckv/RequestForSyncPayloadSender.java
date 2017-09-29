@@ -2,6 +2,7 @@ package ch.digitalfondue.synckv;
 
 import org.jgroups.Address;
 import org.jgroups.JChannel;
+import org.jgroups.blocks.RpcDispatcher;
 
 import java.util.*;
 
@@ -10,8 +11,10 @@ class RequestForSyncPayloadSender implements Runnable {
     private final JChannel channel;
     private final Map<Address, SyncKVMessage.SyncPayloadToLeader> syncPayloads;
     private final SyncKV syncKV;
+    private final RpcDispatcher rpcDispatcher;
 
     RequestForSyncPayloadSender(SyncKV syncKV) {
+        this.rpcDispatcher = syncKV.rpcDispatcher;
         this.channel = syncKV.channel;
         this.syncPayloads = syncKV.syncPayloads;
         this.syncKV = syncKV;
@@ -22,7 +25,7 @@ class RequestForSyncPayloadSender implements Runnable {
         //only if leader
         if (channel.getView().getMembers().get(0).equals(channel.getAddress())) {
             processRequestForSync();
-            SyncKVMessage.broadcast(channel, new SyncKVMessage.RequestForSyncPayload());
+            SyncKVMessage.broadcast(rpcDispatcher, new SyncKVMessage.RequestForSyncPayload(Utils.addressToBase64(channel)));
         }
     }
 
@@ -56,7 +59,7 @@ class RequestForSyncPayloadSender implements Runnable {
         syncPayloads.clear();
 
         // add own copy
-        workingCopy.put(channel.getAddress(), new SyncKVMessage.SyncPayloadToLeader(syncKV.getTableMetadataForSync()));
+        workingCopy.put(channel.getAddress(), new SyncKVMessage.SyncPayloadToLeader(Utils.addressToBase64(channel), syncKV.getTableMetadataForSync()));
         //
 
         //
@@ -103,7 +106,7 @@ class RequestForSyncPayloadSender implements Runnable {
         }
 
         tablesToSync.entrySet().stream().filter(kv -> !kv.getValue().isEmpty()).forEach(kv -> {
-            SyncKVMessage.send(channel, kv.getKey(), new SyncKVMessage.SyncPayloadFrom(kv.getValue()));
+            SyncKVMessage.send(rpcDispatcher, kv.getKey(), new SyncKVMessage.SyncPayloadFrom(Utils.addressToBase64(channel), kv.getValue()));
         });
 
     }

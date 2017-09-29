@@ -6,6 +6,7 @@ import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
+import org.jgroups.blocks.RpcDispatcher;
 
 import java.io.Closeable;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,7 @@ public class SyncKV implements Closeable {
     final JChannel channel;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
     final Map<Address, SyncKVMessage.SyncPayloadToLeader> syncPayloads = new ConcurrentHashMap<>();
+    final RpcDispatcher rpcDispatcher;
 
     public SyncKV() throws Exception {
         this(null, "SyncKV");
@@ -48,8 +50,7 @@ public class SyncKV implements Closeable {
         channel.connect(channelName);
 
 
-
-        channel.setReceiver(new MessageReceiver(this));
+        this.rpcDispatcher = new RpcDispatcher(channel, new MessageReceiver(this));
 
         scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 
@@ -100,7 +101,7 @@ public class SyncKV implements Closeable {
                 store.openMap(tableName + "__metadata_hash"),
                 store.openMap(tableName +"__metadata_insert"),
                 bloomFilters.get(tableName),
-                channel);
+                rpcDispatcher);
     }
 
     public static class SyncKVTable {
@@ -108,19 +109,19 @@ public class SyncKV implements Closeable {
         final MVMap<String, byte[]> tableHashMetadata;
         final MVMap<String, Long> tableLatestInsertMetadata;
         final CountingBloomFilter countingBloomFilter;
-        final JChannel channel;
+        final RpcDispatcher rpcDispatcher;
 
 
         private SyncKVTable(MVMap<String, byte[]> table,
                             MVMap<String, byte[]> tableHashMetadata,
                             MVMap<String, Long> tableLatestInsertMetadata,
                             CountingBloomFilter countingBloomFilter,
-                            JChannel channel) {
+                            RpcDispatcher rpcDispatcher) {
             this.tableHashMetadata = tableHashMetadata;
             this.table = table;
             this.tableLatestInsertMetadata = tableLatestInsertMetadata;
             this.countingBloomFilter = countingBloomFilter;
-            this.channel = channel;
+            this.rpcDispatcher = rpcDispatcher;
         }
 
         public Iterator<String> keys() {
@@ -156,7 +157,7 @@ public class SyncKV implements Closeable {
             countingBloomFilter.add(newKey);
 
             if (broadcast) {
-                SyncKVMessage.broadcast(channel, new SyncKVMessage.PutRequest(table.getName(), key, value));
+                SyncKVMessage.broadcast(rpcDispatcher, new SyncKVMessage.PutRequest(Utils.addressToBase64(rpcDispatcher.getChannel().getAddress()), table.getName(), key, value));
             }
 
             return oldRes;

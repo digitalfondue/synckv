@@ -5,48 +5,55 @@ import ch.digitalfondue.synckv.SyncKVMessage.*;
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.h2.mvstore.MVMap;
 import org.jgroups.Address;
-import org.jgroups.JChannel;
-import org.jgroups.Message;
-import org.jgroups.ReceiverAdapter;
+import org.jgroups.blocks.RpcDispatcher;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
-class MessageReceiver extends ReceiverAdapter {
+public class MessageReceiver {
 
-    private final Address currentAddress;
+
     private final SyncKV syncKV;
-    private final JChannel channel;
     private final Map<Address, SyncPayloadToLeader> syncPayloads;
     private final AtomicLong lastDataSync = new AtomicLong();
 
     MessageReceiver(SyncKV syncKV) {
-        this.currentAddress = syncKV.channel.getAddress();
-        this.channel = syncKV.channel;
         this.syncKV = syncKV;
         this.syncPayloads = syncKV.syncPayloads;
     }
 
-    @Override
-    public void receive(Message msg) {
+    private Address getCurrentAddress() {
+        return syncKV.channel.getAddress();
+    }
+
+    private String getCurrentAddressBase64Encoded() {
+        return Utils.addressToBase64(syncKV.channel);
+    }
+
+    private RpcDispatcher dispatcher() {
+        return syncKV.rpcDispatcher;
+    }
+
+
+    public void receive(SyncKVMessage payload) {
+
+        Address srcAddress = Utils.fromBase64(payload.src);
         // ignore messages sent to itself, except if they are of the type "SyncPayloadFrom" (that are internally dispatched by RequestForSyncPayloadSender)
-        if (!(msg.getObject() instanceof SyncPayloadFrom) && currentAddress.equals(msg.src())) {
+        if (!(payload instanceof SyncPayloadFrom) && getCurrentAddress().equals(srcAddress)) {
             return;
         }
 
         try {
             //
-            Object payload = msg.getObject();
             if (payload instanceof SyncPayload) {
-                handleSyncPayload(msg.src(), (SyncPayload) payload);
+                handleSyncPayload(srcAddress, (SyncPayload) payload);
             } else if (payload instanceof DataToSync) {
                 handleDataToSync((DataToSync) payload);
-                lastDataSync.set(System.currentTimeMillis());
             } else if (payload instanceof RequestForSyncPayload) {
-                handleRequestForSyncPayload(msg.src());
+                handleRequestForSyncPayload(srcAddress);
             } else if (payload instanceof SyncPayloadToLeader) {
-                handleSyncPayloadForLeader(msg.src(), (SyncPayloadToLeader) payload);
+                handleSyncPayloadForLeader(srcAddress, (SyncPayloadToLeader) payload);
             } else if (payload instanceof SyncPayloadFrom) {
                 handleSyncPayloadFrom((SyncPayloadFrom) payload);
             } else if (payload instanceof PutRequest) {
@@ -80,7 +87,7 @@ class MessageReceiver extends ReceiverAdapter {
                     fullSync.add(t.table);
                 }
             });
-            SyncKVMessage.send(channel, target, new SyncPayload(tableMetadata, fullSync));
+            SyncKVMessage.send(dispatcher(), target, new SyncPayload(getCurrentAddressBase64Encoded(), tableMetadata, fullSync));
         });
     }
 
@@ -94,7 +101,7 @@ class MessageReceiver extends ReceiverAdapter {
             return;
         }
 
-        SyncKVMessage.send(channel, leader, new SyncKVMessage.SyncPayloadToLeader(syncKV.getTableMetadataForSync()));
+        SyncKVMessage.send(dispatcher(), leader, new SyncKVMessage.SyncPayloadToLeader(getCurrentAddressBase64Encoded(), syncKV.getTableMetadataForSync()));
 
     }
 
@@ -106,6 +113,7 @@ class MessageReceiver extends ReceiverAdapter {
             }
         });
         syncKV.commit();
+        lastDataSync.set(System.currentTimeMillis());
     }
 
 
@@ -131,7 +139,7 @@ class MessageReceiver extends ReceiverAdapter {
 
     private void sendDataInChunks(Address src, String name, Iterator<String> s, Predicate<String> conditionToAdd, SyncKVTable table) {
         int i = 0;
-        DataToSync dts = new DataToSync(name);
+        DataToSync dts = new DataToSync(getCurrentAddressBase64Encoded(), name);
         for (; s.hasNext(); ) {
             String key = s.next();
             if (conditionToAdd.test(key)) {
@@ -141,14 +149,14 @@ class MessageReceiver extends ReceiverAdapter {
 
             //chunk
             if (i == 200) {
-                SyncKVMessage.send(channel, src, dts);
-                dts = new DataToSync(name);
+                SyncKVMessage.send(dispatcher(), src, dts);
+                dts = new DataToSync(getCurrentAddressBase64Encoded(), name);
                 i = 0;
             }
         }
 
         if (dts.payload.size() > 0) {
-            SyncKVMessage.send(channel, src, dts);
+            SyncKVMessage.send(dispatcher(), src, dts);
         }
     }
 
