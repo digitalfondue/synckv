@@ -115,17 +115,6 @@ abstract class SyncKVMessage implements Serializable {
         }
     }
 
-    static class DataToSync extends SyncKVMessage implements Serializable {
-        final String name;
-        final Map<String, PayloadAndTime> payload;
-
-        DataToSync(String src, String name) {
-            super(src);
-            this.name = name;
-            this.payload = new HashMap<>();
-        }
-    }
-
     static class PayloadAndTime implements Serializable {
         final byte[] payload;
         final long time;

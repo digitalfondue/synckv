@@ -49,8 +49,6 @@ public class MessageReceiver {
             //
             if (payload instanceof SyncPayload) {
                 handleSyncPayload(srcAddress, (SyncPayload) payload);
-            } else if (payload instanceof DataToSync) {
-                handleDataToSync((DataToSync) payload);
             } else if (payload instanceof RequestForSyncPayload) {
                 handleRequestForSyncPayload(srcAddress);
             } else if (payload instanceof SyncPayloadToLeader) {
@@ -69,15 +67,16 @@ public class MessageReceiver {
         return new MethodCall("handlePutRequest", new Object[]{table, key, value}, new Class[]{String.class, String.class, byte[].class});
     }
 
-    public void handlePutRequest(String table, String key, byte[] value) {
-        syncKV.getTable(table).put(key, value, false);
-    }
-
-
-
-
     static MethodCall syncPayloadFromMethodCall(List<TableAddress> remote) {
         return new MethodCall("handleSyncPayloadFrom", new Object[]{remote}, new Class[]{List.class});
+    }
+
+    static MethodCall dataToSyncMethodCall(String name, Map<String, PayloadAndTime> payload) {
+        return new MethodCall("handleDataToSync", new Object[]{name, payload}, new Class[] {String.class, Map.class});
+    }
+
+    public void handlePutRequest(String table, String key, byte[] value) {
+        syncKV.getTable(table).put(key, value, false);
     }
 
     public void handleSyncPayloadFrom(List<TableAddress> remote) {
@@ -111,7 +110,7 @@ public class MessageReceiver {
         syncPayloads.put(src, payload);
     }
 
-    private void handleRequestForSyncPayload(Address leader) {
+    public void handleRequestForSyncPayload(Address leader) {
 
         if (canIgnoreMessage()) {
             return;
@@ -121,9 +120,9 @@ public class MessageReceiver {
 
     }
 
-    private void handleDataToSync(DataToSync payload) {
-        SyncKV.SyncKVTable table = syncKV.getTable(payload.name);
-        payload.payload.forEach((k, v) -> {
+    public void handleDataToSync(String name, Map<String, PayloadAndTime> payload) {
+        SyncKV.SyncKVTable table = syncKV.getTable(name);
+        payload.forEach((k, v) -> {
             if (!table.present(k, v.payload) || table.isNewer(k, v.time)) {
                 table.put(k, v.payload, false);
             }
@@ -155,24 +154,24 @@ public class MessageReceiver {
 
     private void sendDataInChunks(Address src, String name, Iterator<String> s, Predicate<String> conditionToAdd, SyncKVTable table) {
         int i = 0;
-        DataToSync dts = new DataToSync(getCurrentAddressBase64Encoded(), name);
+        Map<String, PayloadAndTime> payload = new HashMap<>();
         for (; s.hasNext(); ) {
             String key = s.next();
             if (conditionToAdd.test(key)) {
                 i++;
-                dts.payload.put(key, new PayloadAndTime(table.get(key), table.getInsertTime(key)));
+                payload.put(key, new PayloadAndTime(table.get(key), table.getInsertTime(key)));
             }
 
             //chunk
             if (i == 200) {
-                SyncKVMessage.send(dispatcher(), src, dts);
-                dts = new DataToSync(getCurrentAddressBase64Encoded(), name);
+                SyncKVMessage.send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
+                payload = new HashMap<>();
                 i = 0;
             }
         }
 
-        if (dts.payload.size() > 0) {
-            SyncKVMessage.send(dispatcher(), src, dts);
+        if (payload.size() > 0) {
+            SyncKVMessage.send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
         }
     }
 
