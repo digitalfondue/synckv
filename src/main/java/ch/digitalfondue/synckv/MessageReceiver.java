@@ -11,12 +11,13 @@ import org.jgroups.blocks.RpcDispatcher;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class MessageReceiver {
 
 
     private final SyncKV syncKV;
-    private final Map<Address, SyncPayloadToLeader> syncPayloads;
+    private final Map<Address, List<TableMetadata>> syncPayloads;
     private final AtomicLong lastDataSync = new AtomicLong();
 
     MessageReceiver(SyncKV syncKV) {
@@ -28,43 +29,16 @@ public class MessageReceiver {
         return syncKV.channel.getAddress();
     }
 
-    private String getCurrentAddressBase64Encoded() {
-        return Utils.addressToBase64(syncKV.channel);
-    }
-
     private RpcDispatcher dispatcher() {
         return syncKV.rpcDispatcher;
-    }
-
-
-    public void receive(SyncKVMessage payload) {
-
-        Address srcAddress = Utils.fromBase64(payload.src);
-        // ignore messages sent to itself
-        if (getCurrentAddress().equals(srcAddress)) {
-            return;
-        }
-
-        try {
-            //
-            if (payload instanceof SyncPayload) {
-                handleSyncPayload(srcAddress, (SyncPayload) payload);
-            } else if (payload instanceof RequestForSyncPayload) {
-                handleRequestForSyncPayload(srcAddress);
-            } else if (payload instanceof SyncPayloadToLeader) {
-                handleSyncPayloadForLeader(srcAddress, (SyncPayloadToLeader) payload);
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
     }
 
     private boolean canIgnoreMessage() {
         return System.currentTimeMillis() - lastDataSync.get() <= 10 * 500;
     }
 
-    static MethodCall putRequestMethodCall(String table, String key, byte[] value) {
-        return new MethodCall("handlePutRequest", new Object[]{table, key, value}, new Class[]{String.class, String.class, byte[].class});
+    static MethodCall putRequestMethodCall(Address source, String table, String key, byte[] value) {
+        return new MethodCall("handlePutRequest", new Object[]{Utils.addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, String.class, byte[].class});
     }
 
     static MethodCall syncPayloadFromMethodCall(List<TableAddress> remote) {
@@ -75,7 +49,27 @@ public class MessageReceiver {
         return new MethodCall("handleDataToSync", new Object[]{name, payload}, new Class[] {String.class, Map.class});
     }
 
-    public void handlePutRequest(String table, String key, byte[] value) {
+    static MethodCall requestForSyncPayloadMethodCall(Address address) {
+        return new MethodCall("handleRequestForSyncPayload", new Object[]{Utils.addressToBase64(address)}, new Class[]{String.class});
+    }
+
+    static MethodCall syncPayloadMethodCall(Address address, List<TableMetadata> metadata, Set<String> fullSync) {
+        return new MethodCall("handleSyncPayload", new Object[] {Utils.addressToBase64(address), metadata, fullSync}, new Class[] {String.class, List.class, Set.class});
+    }
+
+    static MethodCall syncPayloadForLeader(Address currentAddress, List<TableMetadata> tableMetadataForSync) {
+        return new MethodCall("handleSyncPayloadForLeader", new Object[] {Utils.addressToBase64(currentAddress), tableMetadataForSync}, new Class[] {String.class, List.class});
+    }
+
+    public void handlePutRequest(String src, String table, String key, byte[] value) {
+
+        Address source = Utils.fromBase64(src);
+
+        if (source.equals(getCurrentAddress())) {
+            //calling himself, ignore
+            return;
+        }
+
         syncKV.getTable(table).put(key, value, false);
     }
 
@@ -102,21 +96,28 @@ public class MessageReceiver {
                     fullSync.add(t.table);
                 }
             });
-            SyncKVMessage.send(dispatcher(), target, new SyncPayload(getCurrentAddressBase64Encoded(), tableMetadata, fullSync));
+            SyncKVMessage.send(dispatcher(), target, MessageReceiver.syncPayloadMethodCall(getCurrentAddress(), tableMetadata, fullSync));
         });
     }
 
-    private void handleSyncPayloadForLeader(Address src, SyncPayloadToLeader payload) {
-        syncPayloads.put(src, payload);
+    public void handleSyncPayloadForLeader(String src, List<TableMetadata> payload) {
+        syncPayloads.put(Utils.fromBase64(src), payload);
     }
 
-    public void handleRequestForSyncPayload(Address leader) {
+    public void handleRequestForSyncPayload(String src) {
 
         if (canIgnoreMessage()) {
             return;
         }
 
-        SyncKVMessage.send(dispatcher(), leader, new SyncKVMessage.SyncPayloadToLeader(getCurrentAddressBase64Encoded(), syncKV.getTableMetadataForSync()));
+        Address leader = Utils.fromBase64(src);
+
+        if (leader.equals(getCurrentAddress())) {
+            //calling himself, ignore
+            return;
+        }
+
+        SyncKVMessage.send(dispatcher(), leader, syncPayloadForLeader(getCurrentAddress(), syncKV.getTableMetadataForSync()));
 
     }
 
@@ -132,12 +133,15 @@ public class MessageReceiver {
     }
 
 
-    private void handleSyncPayload(Address src, SyncPayload s) {
-        for (String table : s.getRemoteTables()) {
-            if (s.fullSync.contains(table)) {
+    public void handleSyncPayload(String source, List<TableMetadata> metadata, Set<String> fullSync) {
+        Address src = Utils.fromBase64(source);
+
+        for (String table : metadata.stream().map(TableMetadata::getName).collect(Collectors.toSet())) {
+            if (fullSync.contains(table)) {
                 syncTableTotally(src, table);
             } else {
-                syncTablePartially(src, table, s.getMetadataFor(table));
+                syncTablePartially(src, table,
+                        metadata.stream().filter(s -> s.name.equals(table)).findFirst().orElse(null));
             }
         }
     }

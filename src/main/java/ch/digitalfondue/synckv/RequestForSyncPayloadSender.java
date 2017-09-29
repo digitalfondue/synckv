@@ -9,7 +9,7 @@ import java.util.*;
 class RequestForSyncPayloadSender implements Runnable {
 
     private final JChannel channel;
-    private final Map<Address, SyncKVMessage.SyncPayloadToLeader> syncPayloads;
+    private final Map<Address, List<SyncKVMessage.TableMetadata>> syncPayloads;
     private final SyncKV syncKV;
     private final RpcDispatcher rpcDispatcher;
 
@@ -25,7 +25,7 @@ class RequestForSyncPayloadSender implements Runnable {
         //only if leader
         if (channel.getView().getMembers().get(0).equals(channel.getAddress())) {
             processRequestForSync();
-            SyncKVMessage.broadcastToEverybodyElse(rpcDispatcher, new SyncKVMessage.RequestForSyncPayload(Utils.addressToBase64(channel)));
+            SyncKVMessage.broadcastToEverybodyElse(channel, rpcDispatcher, MessageReceiver.requestForSyncPayloadMethodCall(channel.getAddress()));
         }
     }
 
@@ -55,18 +55,18 @@ class RequestForSyncPayloadSender implements Runnable {
 
     //given the currently present sync payload request, route the requests correctly between the elements of the cluster
     private void processRequestForSync() {
-        Map<Address, SyncKVMessage.SyncPayloadToLeader> workingCopy = new HashMap<>(syncPayloads);
+        Map<Address, List<SyncKVMessage.TableMetadata>> workingCopy = new HashMap<>(syncPayloads);
         syncPayloads.clear();
 
         // add own copy
-        workingCopy.put(channel.getAddress(), new SyncKVMessage.SyncPayloadToLeader(Utils.addressToBase64(channel), syncKV.getTableMetadataForSync()));
+        workingCopy.put(channel.getAddress(), syncKV.getTableMetadataForSync());
         //
 
         //
         Map<String, Set<AddressBloomFilter>> tablePresenceCollapsed = new HashMap<>();
         Map<String, Set<Address>> tablePresence = new HashMap<>();
-        for (Map.Entry<Address, SyncKVMessage.SyncPayloadToLeader> e : workingCopy.entrySet()) {
-            e.getValue().metadata.stream().forEach(tm -> {
+        for (Map.Entry<Address, List<SyncKVMessage.TableMetadata>> e : workingCopy.entrySet()) {
+            e.getValue().stream().forEach(tm -> {
 
                 if (!tablePresenceCollapsed.containsKey(tm.getName())) {
                     tablePresenceCollapsed.putIfAbsent(tm.getName(), new HashSet<>());
@@ -93,7 +93,7 @@ class RequestForSyncPayloadSender implements Runnable {
                     tablesToSync.get(a).add(new SyncKVMessage.TableAddress(name, toFetch, true));
                 } else {
                     //handle case where table is present
-                    byte[] cbf = workingCopy.get(a).getMetadataFor(name).bloomFilter;
+                    byte[] cbf = workingCopy.get(a).stream().filter(s -> s.name.equals(name)).findFirst().orElse(null).bloomFilter;
 
                     //find the first table where the bloom filter is not equal
                     tablePresenceCollapsed.get(name).stream()

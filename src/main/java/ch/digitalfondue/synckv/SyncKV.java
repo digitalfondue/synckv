@@ -23,7 +23,7 @@ public class SyncKV implements Closeable {
     final ConcurrentHashMap<String, CountingBloomFilter> bloomFilters = new ConcurrentHashMap<>();
     final JChannel channel;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
-    final Map<Address, SyncKVMessage.SyncPayloadToLeader> syncPayloads = new ConcurrentHashMap<>();
+    final Map<Address, List<SyncKVMessage.TableMetadata>> syncPayloads = new ConcurrentHashMap<>();
     final RpcDispatcher rpcDispatcher;
 
     public SyncKV() throws Exception {
@@ -150,7 +150,8 @@ public class SyncKV implements Closeable {
             countingBloomFilter.add(newKey);
 
             if (broadcast) {
-                SyncKVMessage.broadcastToEverybodyElse(syncKV.channel, syncKV.rpcDispatcher, MessageReceiver.putRequestMethodCall(table.getName(), key, value));
+                SyncKVMessage.broadcastToEverybodyElse(syncKV.channel, syncKV.rpcDispatcher,
+                        MessageReceiver.putRequestMethodCall(syncKV.channel.getAddress(), table.getName(), key, value));
             }
 
             return oldRes;

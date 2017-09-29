@@ -14,28 +14,7 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-abstract class SyncKVMessage implements Serializable {
-
-
-    final String src;
-
-    //for serialization!
-    public SyncKVMessage() {
-        this.src = null;
-    }
-
-    protected SyncKVMessage(String src) {
-        this.src = src;
-    }
-
-    static void broadcastToEverybodyElse(RpcDispatcher rpcDispatcher, SyncKVMessage msg) {
-        try {
-            rpcDispatcher.callRemoteMethods(null, "receive", new Object[]{msg}, new Class[]{SyncKVMessage.class}, RequestOptions.ASYNC());
-        } catch (Exception e) {
-            //FIXME use java logging
-            e.printStackTrace();
-        }
-    }
+abstract class SyncKVMessage  {
 
     static void broadcastToEverybodyElse(JChannel channel, RpcDispatcher rpcDispatcher, MethodCall call) {
         try {
@@ -53,53 +32,6 @@ abstract class SyncKVMessage implements Serializable {
         } catch (Exception e) {
             //FIXME use java logging
             e.printStackTrace();
-        }
-    }
-
-    static void send(RpcDispatcher rpcDispatcher, Address address, SyncKVMessage msg) {
-        try {
-            rpcDispatcher.callRemoteMethod(address, "receive", new Object[] {msg}, new Class[]{SyncKVMessage.class}, RequestOptions.ASYNC());
-        } catch (Exception e) {
-            //FIXME use java logging
-            e.printStackTrace();
-        }
-    }
-
-    static class RequestForSyncPayload extends SyncKVMessage implements Serializable {
-        RequestForSyncPayload(String src) {
-            super(src);
-        }
-    }
-
-    static class SyncPayloadToLeader extends SyncKVMessage implements Serializable {
-        final List<TableMetadata> metadata;
-
-        SyncPayloadToLeader(String src, List<TableMetadata> metadata) {
-            super(src);
-            this.metadata = metadata;
-        }
-
-        TableMetadata getMetadataFor(String name) {
-            return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
-        }
-    }
-
-    static class SyncPayload extends SyncKVMessage implements Serializable {
-        final List<TableMetadata> metadata;
-        final Set<String> fullSync;
-
-        SyncPayload(String src, List<TableMetadata> metadata, Set<String> fullSync) {
-            super(src);
-            this.metadata = metadata;
-            this.fullSync = fullSync;
-        }
-
-        Set<String> getRemoteTables() {
-            return metadata.stream().map(TableMetadata::getName).collect(Collectors.toSet());
-        }
-
-        TableMetadata getMetadataFor(String name) {
-            return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
         }
     }
 
