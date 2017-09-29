@@ -42,6 +42,17 @@ abstract class SyncKVMessage {
     }
 
 
+    static class PutRequest extends SyncKVMessage implements Serializable {
+        final String table;
+        final String key;
+        final byte[] payload;
+
+        PutRequest(String table, String key, byte[] payload) {
+            this.table = table;
+            this.key = key;
+            this.payload = payload;
+        }
+    }
 
     static class SyncPayload extends SyncKVMessage implements Serializable {
         final List<TableMetadata> metadata;

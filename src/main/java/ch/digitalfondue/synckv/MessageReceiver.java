@@ -49,10 +49,16 @@ class MessageReceiver extends ReceiverAdapter {
                 handleSyncPayloadForLeader(msg.src(), (SyncPayloadToLeader) payload);
             } else if (payload instanceof SyncPayloadFrom) {
                 handleSyncPayloadFrom((SyncPayloadFrom) payload);
+            } else if (payload instanceof PutRequest) {
+                handlePutRequest((PutRequest) payload);
             }
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    private void handlePutRequest(PutRequest payload) {
+        syncKV.getTable(payload.table).put(payload.key, payload.payload, false);
     }
 
     private boolean canIgnoreMessage() {

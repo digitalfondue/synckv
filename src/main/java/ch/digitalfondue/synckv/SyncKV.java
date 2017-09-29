@@ -88,14 +88,6 @@ public class SyncKV implements Closeable {
         scheduledExecutor.shutdown();
     }
 
-    public void rollback() {
-        store.rollback();
-    }
-
-    public void rollback(long version) {
-        store.rollbackTo(version);
-    }
-
     public synchronized SyncKVTable getTable(String tableName) {
         Objects.requireNonNull(tableName);
         if (!IS_VALID_PUBLIC_TABLE_NAME.test(tableName)) {
@@ -107,7 +99,8 @@ public class SyncKV implements Closeable {
         return new SyncKVTable(store.openMap(tableName),
                 store.openMap(tableName + "__metadata_hash"),
                 store.openMap(tableName +"__metadata_insert"),
-                bloomFilters.get(tableName));
+                bloomFilters.get(tableName),
+                channel);
     }
 
     public static class SyncKVTable {
@@ -115,16 +108,19 @@ public class SyncKV implements Closeable {
         final MVMap<String, byte[]> tableHashMetadata;
         final MVMap<String, Long> tableLatestInsertMetadata;
         final CountingBloomFilter countingBloomFilter;
+        final JChannel channel;
 
 
         private SyncKVTable(MVMap<String, byte[]> table,
                             MVMap<String, byte[]> tableHashMetadata,
                             MVMap<String, Long> tableLatestInsertMetadata,
-                            CountingBloomFilter countingBloomFilter) {
+                            CountingBloomFilter countingBloomFilter,
+                            JChannel channel) {
             this.tableHashMetadata = tableHashMetadata;
             this.table = table;
             this.tableLatestInsertMetadata = tableLatestInsertMetadata;
             this.countingBloomFilter = countingBloomFilter;
+            this.channel = channel;
         }
 
         public Iterator<String> keys() {
@@ -143,6 +139,10 @@ public class SyncKV implements Closeable {
         }
 
         public synchronized byte[] put(String key, byte[] value) {
+            return put(key, value, true);
+        }
+
+        synchronized byte[] put(String key, byte[] value, boolean broadcast) {
             int hash = hashFor(key, value);
 
             byte[] oldRes = table.put(key, value);
@@ -154,6 +154,11 @@ public class SyncKV implements Closeable {
             tableHashMetadata.put(key, newKey.getBytes());
             tableLatestInsertMetadata.put(key, System.nanoTime());
             countingBloomFilter.add(newKey);
+
+            if (broadcast) {
+                SyncKVMessage.broadcast(channel, new SyncKVMessage.PutRequest(table.getName(), key, value));
+            }
+
             return oldRes;
         }
 
