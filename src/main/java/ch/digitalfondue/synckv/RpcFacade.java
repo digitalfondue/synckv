@@ -38,28 +38,14 @@ public class RpcFacade {
         return System.currentTimeMillis() - lastDataSync.get() <= 10 * 500;
     }
 
-    static MethodCall putRequestMethodCall(Address source, String table, String key, byte[] value) {
-        return new MethodCall("handlePutRequest", new Object[]{Utils.addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, String.class, byte[].class});
+    public void setRpcDispatcher(RpcDispatcher rpcDispatcher) {
+        this.rpcDispatcher = rpcDispatcher;
     }
 
-    static MethodCall syncPayloadFromMethodCall(List<TableAddress> remote) {
-        return new MethodCall("handleSyncPayloadFrom", new Object[]{remote}, new Class[]{List.class});
-    }
+    //-----------
 
-    static MethodCall dataToSyncMethodCall(String name, Map<String, PayloadAndTime> payload) {
-        return new MethodCall("handleDataToSync", new Object[]{name, payload}, new Class[] {String.class, Map.class});
-    }
-
-    static MethodCall requestForSyncPayloadMethodCall(Address address) {
-        return new MethodCall("handleRequestForSyncPayload", new Object[]{Utils.addressToBase64(address)}, new Class[]{String.class});
-    }
-
-    static MethodCall syncPayloadMethodCall(Address address, List<TableMetadata> metadata, Set<String> fullSync) {
-        return new MethodCall("handleSyncPayload", new Object[] {Utils.addressToBase64(address), metadata, fullSync}, new Class[] {String.class, List.class, Set.class});
-    }
-
-    static MethodCall syncPayloadForLeader(Address currentAddress, List<TableMetadata> tableMetadataForSync) {
-        return new MethodCall("handleSyncPayloadForLeader", new Object[] {Utils.addressToBase64(currentAddress), tableMetadataForSync}, new Class[] {String.class, List.class});
+    void putRequest(Address source, String table, String key, byte[] value) {
+        broadcastToEverybodyElse(new MethodCall("handlePutRequest", new Object[]{Utils.addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, String.class, byte[].class}));
     }
 
     public void handlePutRequest(String src, String table, String key, byte[] value) {
@@ -74,6 +60,12 @@ public class RpcFacade {
         syncKV.getTable(table).put(key, value, false);
     }
 
+    //-----------
+
+    void syncPayloadFrom(Address address, List<TableAddress> remote) {
+        send(address, new MethodCall("handleSyncPayloadFrom", new Object[]{remote}, new Class[]{List.class}));
+    }
+
     public void handleSyncPayloadFrom(List<TableAddress> remote) {
         if (canIgnoreMessage()) {
             return;
@@ -81,7 +73,7 @@ public class RpcFacade {
 
         Map<String, List<TableAddress>> addressesAndTables = new HashMap<>();
         remote.stream().forEach(ta -> {
-            if(!addressesAndTables.containsKey(ta.addressEncoded)) {
+            if (!addressesAndTables.containsKey(ta.addressEncoded)) {
                 addressesAndTables.put(ta.addressEncoded, new ArrayList<>());
             }
             addressesAndTables.get(ta.addressEncoded).add(ta);
@@ -97,12 +89,32 @@ public class RpcFacade {
                     fullSync.add(t.table);
                 }
             });
-            send(target, RpcFacade.syncPayloadMethodCall(getCurrentAddress(), tableMetadata, fullSync));
+            syncPayload(target, getCurrentAddress(), tableMetadata, fullSync);
         });
     }
 
-    public void handleSyncPayloadForLeader(String src, List<TableMetadata> payload) {
-        syncPayloads.put(Utils.fromBase64(src), payload);
+    //-----------
+
+    void dataToSync(Address address, String name, Map<String, PayloadAndTime> payload) {
+        send(address, new MethodCall("handleDataToSync", new Object[]{name, payload}, new Class[]{String.class, Map.class}));
+    }
+
+    public void handleDataToSync(String name, Map<String, PayloadAndTime> payload) {
+        SyncKV.SyncKVTable table = syncKV.getTable(name);
+        payload.forEach((k, v) -> {
+            if (!table.present(k, v.payload) || table.isNewer(k, v.time)) {
+                table.put(k, v.payload, false);
+            }
+        });
+        syncKV.commit();
+        lastDataSync.set(System.currentTimeMillis());
+    }
+
+    //-----------
+
+
+    void requestForSyncPayload(Address address) {
+        broadcastToEverybodyElse(new MethodCall("handleRequestForSyncPayload", new Object[]{Utils.addressToBase64(address)}, new Class[]{String.class}));
     }
 
     public void handleRequestForSyncPayload(String src) {
@@ -118,21 +130,15 @@ public class RpcFacade {
             return;
         }
 
-        send(leader, syncPayloadForLeader(getCurrentAddress(), syncKV.getTableMetadataForSync()));
+        syncPayloadForLeader(leader, getCurrentAddress(), syncKV.getTableMetadataForSync());
 
     }
 
-    public void handleDataToSync(String name, Map<String, PayloadAndTime> payload) {
-        SyncKV.SyncKVTable table = syncKV.getTable(name);
-        payload.forEach((k, v) -> {
-            if (!table.present(k, v.payload) || table.isNewer(k, v.time)) {
-                table.put(k, v.payload, false);
-            }
-        });
-        syncKV.commit();
-        lastDataSync.set(System.currentTimeMillis());
-    }
+    //-----------
 
+    void syncPayload(Address addressToSend, Address address, List<TableMetadata> metadata, Set<String> fullSync) {
+        send(addressToSend, new MethodCall("handleSyncPayload", new Object[]{Utils.addressToBase64(address), metadata, fullSync}, new Class[]{String.class, List.class, Set.class}));
+    }
 
     public void handleSyncPayload(String source, List<TableMetadata> metadata, Set<String> fullSync) {
         Address src = Utils.fromBase64(source);
@@ -169,14 +175,14 @@ public class RpcFacade {
 
             //chunk
             if (i == 200) {
-                send(src, RpcFacade.dataToSyncMethodCall(name, payload));
+                dataToSync(src, name, payload);
                 payload = new HashMap<>();
                 i = 0;
             }
         }
 
         if (payload.size() > 0) {
-            send(src, RpcFacade.dataToSyncMethodCall(name, payload));
+            dataToSync(src, name, payload);
         }
     }
 
@@ -185,10 +191,23 @@ public class RpcFacade {
         sendDataInChunks(src, name, table.keys(), s -> true, table);
     }
 
+    //-----------
 
-    void broadcastToEverybodyElse(JChannel channel, MethodCall call) {
+    void syncPayloadForLeader(Address address, Address currentAddress, List<TableMetadata> tableMetadataForSync) {
+        send(address, new MethodCall("handleSyncPayloadForLeader", new Object[]{Utils.addressToBase64(currentAddress), tableMetadataForSync}, new Class[]{String.class, List.class}));
+    }
+
+    public void handleSyncPayloadForLeader(String src, List<TableMetadata> payload) {
+        syncPayloads.put(Utils.fromBase64(src), payload);
+    }
+
+    //-----------
+
+
+    void broadcastToEverybodyElse(MethodCall call) {
         try {
-            List<Address> everybodyElse = channel.view().getMembers().stream().filter(address-> !address.equals(channel.getAddress())).collect(Collectors.toList());
+            JChannel channel = syncKV.channel;
+            List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
             rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.ASYNC());
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error while calling broadcastToEverybodyElse", e);
@@ -201,9 +220,5 @@ public class RpcFacade {
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error while calling send", e);
         }
-    }
-
-    public void setRpcDispatcher(RpcDispatcher rpcDispatcher) {
-        this.rpcDispatcher = rpcDispatcher;
     }
 }

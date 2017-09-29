@@ -22,7 +22,7 @@ class RequestForSyncPayloadSender implements Runnable {
         //only if leader
         if (channel.getView().getMembers().get(0).equals(channel.getAddress())) {
             processRequestForSync();
-            this.syncKV.rpcFacade.broadcastToEverybodyElse(channel, RpcFacade.requestForSyncPayloadMethodCall(channel.getAddress()));
+            this.syncKV.rpcFacade.requestForSyncPayload(channel.getAddress());
         }
     }
 
@@ -103,7 +103,7 @@ class RequestForSyncPayloadSender implements Runnable {
         }
 
         tablesToSync.entrySet().stream().filter(kv -> !kv.getValue().isEmpty()).forEach(kv -> {
-            this.syncKV.rpcFacade.send(kv.getKey(), RpcFacade.syncPayloadFromMethodCall(kv.getValue()));
+            this.syncKV.rpcFacade.syncPayloadFrom(kv.getKey(), kv.getValue());
         });
 
     }

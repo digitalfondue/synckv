@@ -151,7 +151,7 @@ public class SyncKV implements Closeable {
             countingBloomFilter.add(newKey);
 
             if (broadcast) {
-                syncKV.rpcFacade.broadcastToEverybodyElse(syncKV.channel, RpcFacade.putRequestMethodCall(syncKV.channel.getAddress(), table.getName(), key, value));
+                syncKV.rpcFacade.putRequest(syncKV.channel.getAddress(), table.getName(), key, value);
             }
 
             return oldRes;

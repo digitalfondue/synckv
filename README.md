@@ -19,19 +19,19 @@ It has the following limitations:
  Synchronization strategy
  ------------------------
  
- Distributed put: when a put is done in a node, a `PutRequest` is sent to everybody. So generally, after the first
+ Distributed put: when a put is done in a node, a `putRequest` is sent to everybody. So generally, after the first
  synchronization the data should be aligned.
  
  
  Full/partial synchronization: In a jgroup channel, there is a leader (the first element of the channel) 
  and the followers.
  
- 1. The leader, each 10 seconds, broadcast a `RequestForSyncPayload` message
- 2. The followers, receiving the `RequestForSyncPayload` send back to the 
-    leader a `SyncPayloadToLeader` which contain the table name, with 
-    element count and related bloom filter
- 3. The leader, save in a map Address,SyncPayloadToLeader the message
- 4. In the same job as point 1, each 10 seconds it will handle the map of `SyncPayloadToLeader`:
+ 1. The leader, each 10 seconds, make a `requestForSyncPayload` call
+ 2. The followers, will receive a call to `handleRequestForSyncPayload` call back the leader 
+    with `syncPayloadForLeader` 
+ 3. The leader, receive the various calls through `handleSyncPayloadForLeader` save in a map Address, List of TableMetadata
+    the message
+ 4. In the same job as point 1, each 10 seconds it will handle the map of `List of TableMetadata`:
     for the tables that are missing, it will send a "full sync" message, for the ones that have
     a different bloom filter a "partial sync" message. 
     The message class is `SyncPayloadFrom`: it contain from where the receiver will need to load the data.
