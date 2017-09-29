@@ -13,26 +13,26 @@ import org.jgroups.blocks.RpcDispatcher;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-public class MessageReceiver {
+public class RpcFacade {
 
+    private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
 
     private final SyncKV syncKV;
     private final Map<Address, List<TableMetadata>> syncPayloads;
     private final AtomicLong lastDataSync = new AtomicLong();
+    private RpcDispatcher rpcDispatcher;
 
-    MessageReceiver(SyncKV syncKV) {
+    RpcFacade(SyncKV syncKV) {
         this.syncKV = syncKV;
         this.syncPayloads = syncKV.syncPayloads;
     }
 
     private Address getCurrentAddress() {
         return syncKV.channel.getAddress();
-    }
-
-    private RpcDispatcher dispatcher() {
-        return syncKV.rpcDispatcher;
     }
 
     private boolean canIgnoreMessage() {
@@ -98,7 +98,7 @@ public class MessageReceiver {
                     fullSync.add(t.table);
                 }
             });
-            send(dispatcher(), target, MessageReceiver.syncPayloadMethodCall(getCurrentAddress(), tableMetadata, fullSync));
+            send(target, RpcFacade.syncPayloadMethodCall(getCurrentAddress(), tableMetadata, fullSync));
         });
     }
 
@@ -119,7 +119,7 @@ public class MessageReceiver {
             return;
         }
 
-        send(dispatcher(), leader, syncPayloadForLeader(getCurrentAddress(), syncKV.getTableMetadataForSync()));
+        send(leader, syncPayloadForLeader(getCurrentAddress(), syncKV.getTableMetadataForSync()));
 
     }
 
@@ -170,14 +170,14 @@ public class MessageReceiver {
 
             //chunk
             if (i == 200) {
-                send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
+                send(src, RpcFacade.dataToSyncMethodCall(name, payload));
                 payload = new HashMap<>();
                 i = 0;
             }
         }
 
         if (payload.size() > 0) {
-            send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
+            send(src, RpcFacade.dataToSyncMethodCall(name, payload));
         }
     }
 
@@ -187,22 +187,24 @@ public class MessageReceiver {
     }
 
 
-    static void broadcastToEverybodyElse(JChannel channel, RpcDispatcher rpcDispatcher, MethodCall call) {
+    void broadcastToEverybodyElse(JChannel channel, MethodCall call) {
         try {
             List<Address> everybodyElse = channel.view().getMembers().stream().filter(address-> !address.equals(channel.getAddress())).collect(Collectors.toList());
             rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.ASYNC());
         } catch (Exception e) {
-            //FIXME use java logging
-            e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Error while calling broadcastToEverybodyElse", e);
         }
     }
 
-    static void send(RpcDispatcher rpcDispatcher, Address address, MethodCall call) {
+    void send(Address address, MethodCall call) {
         try {
             rpcDispatcher.callRemoteMethod(address, call, RequestOptions.ASYNC());
         } catch (Exception e) {
-            //FIXME use java logging
-            e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Error while calling send", e);
         }
+    }
+
+    public void setRpcDispatcher(RpcDispatcher rpcDispatcher) {
+        this.rpcDispatcher = rpcDispatcher;
     }
 }

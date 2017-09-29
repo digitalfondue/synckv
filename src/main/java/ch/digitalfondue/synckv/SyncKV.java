@@ -24,7 +24,7 @@ public class SyncKV implements Closeable {
     final JChannel channel;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
     final Map<Address, List<SyncKVMessage.TableMetadata>> syncPayloads = new ConcurrentHashMap<>();
-    final RpcDispatcher rpcDispatcher;
+    final RpcFacade rpcFacade;
 
     public SyncKV() throws Exception {
         this(null, "SyncKV");
@@ -49,8 +49,9 @@ public class SyncKV implements Closeable {
         channel = new JChannel();
         channel.connect(channelName);
 
-
-        this.rpcDispatcher = new RpcDispatcher(channel, new MessageReceiver(this));
+        this.rpcFacade = new RpcFacade(this);
+        RpcDispatcher rpcDispatcher = new RpcDispatcher(channel, rpcFacade);
+        this.rpcFacade.setRpcDispatcher(rpcDispatcher);
 
         scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 
@@ -150,8 +151,7 @@ public class SyncKV implements Closeable {
             countingBloomFilter.add(newKey);
 
             if (broadcast) {
-                MessageReceiver.broadcastToEverybodyElse(syncKV.channel, syncKV.rpcDispatcher,
-                        MessageReceiver.putRequestMethodCall(syncKV.channel.getAddress(), table.getName(), key, value));
+                syncKV.rpcFacade.broadcastToEverybodyElse(syncKV.channel, RpcFacade.putRequestMethodCall(syncKV.channel.getAddress(), table.getName(), key, value));
             }
 
             return oldRes;

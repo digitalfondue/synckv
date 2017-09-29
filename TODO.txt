@@ -1,2 +1,2 @@
 - add a distributed get, in case the sync has currently not be done
-- convert to java logging the printStackTrace...
+- replace the various RpcFacade.syncPayloadFromMethodCall builder with a direct call

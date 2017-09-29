@@ -2,7 +2,6 @@ package ch.digitalfondue.synckv;
 
 import org.jgroups.Address;
 import org.jgroups.JChannel;
-import org.jgroups.blocks.RpcDispatcher;
 
 import java.util.*;
 
@@ -11,10 +10,8 @@ class RequestForSyncPayloadSender implements Runnable {
     private final JChannel channel;
     private final Map<Address, List<SyncKVMessage.TableMetadata>> syncPayloads;
     private final SyncKV syncKV;
-    private final RpcDispatcher rpcDispatcher;
 
     RequestForSyncPayloadSender(SyncKV syncKV) {
-        this.rpcDispatcher = syncKV.rpcDispatcher;
         this.channel = syncKV.channel;
         this.syncPayloads = syncKV.syncPayloads;
         this.syncKV = syncKV;
@@ -25,7 +22,7 @@ class RequestForSyncPayloadSender implements Runnable {
         //only if leader
         if (channel.getView().getMembers().get(0).equals(channel.getAddress())) {
             processRequestForSync();
-            MessageReceiver.broadcastToEverybodyElse(channel, rpcDispatcher, MessageReceiver.requestForSyncPayloadMethodCall(channel.getAddress()));
+            this.syncKV.rpcFacade.broadcastToEverybodyElse(channel, RpcFacade.requestForSyncPayloadMethodCall(channel.getAddress()));
         }
     }
 
@@ -106,7 +103,7 @@ class RequestForSyncPayloadSender implements Runnable {
         }
 
         tablesToSync.entrySet().stream().filter(kv -> !kv.getValue().isEmpty()).forEach(kv -> {
-            MessageReceiver.send(rpcDispatcher, kv.getKey(), MessageReceiver.syncPayloadFromMethodCall(kv.getValue()));
+            this.syncKV.rpcFacade.send(kv.getKey(), RpcFacade.syncPayloadFromMethodCall(kv.getValue()));
         });
 
     }
