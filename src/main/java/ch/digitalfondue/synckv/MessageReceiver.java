@@ -5,6 +5,7 @@ import ch.digitalfondue.synckv.SyncKVMessage.*;
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.h2.mvstore.MVMap;
 import org.jgroups.Address;
+import org.jgroups.blocks.MethodCall;
 import org.jgroups.blocks.RpcDispatcher;
 
 import java.util.*;
@@ -56,16 +57,19 @@ public class MessageReceiver {
                 handleSyncPayloadForLeader(srcAddress, (SyncPayloadToLeader) payload);
             } else if (payload instanceof SyncPayloadFrom) {
                 handleSyncPayloadFrom((SyncPayloadFrom) payload);
-            } else if (payload instanceof PutRequest) {
-                handlePutRequest((PutRequest) payload);
             }
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
 
-    private void handlePutRequest(PutRequest payload) {
-        syncKV.getTable(payload.table).put(payload.key, payload.payload, false);
+    public static MethodCall putRequestMethodCall(String table, String key, byte[] value) {
+        return new MethodCall("handlePutRequest", new Object[]{table, key, value}, new Class[]{String.class, String.class, byte[].class});
+    }
+
+    public void handlePutRequest(String table, String key, byte[] value) {
+        System.err.println("called remotely handlePutRequest");
+        syncKV.getTable(table).put(key, value, false);
     }
 
     private boolean canIgnoreMessage() {
@@ -109,7 +113,7 @@ public class MessageReceiver {
         SyncKV.SyncKVTable table = syncKV.getTable(payload.name);
         payload.payload.forEach((k, v) -> {
             if (!table.present(k, v.payload) || table.isNewer(k, v.time)) {
-                table.put(k, v.payload);
+                table.put(k, v.payload, false);
             }
         });
         syncKV.commit();

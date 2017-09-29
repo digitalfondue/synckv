@@ -2,6 +2,8 @@ package ch.digitalfondue.synckv;
 
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.jgroups.Address;
+import org.jgroups.JChannel;
+import org.jgroups.blocks.MethodCall;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
 
@@ -26,9 +28,19 @@ abstract class SyncKVMessage implements Serializable {
         this.src = src;
     }
 
-    static void broadcast(RpcDispatcher rpcDispatcher, SyncKVMessage msg) {
+    static void broadcastToEverybodyElse(RpcDispatcher rpcDispatcher, SyncKVMessage msg) {
         try {
             rpcDispatcher.callRemoteMethods(null, "receive", new Object[]{msg}, new Class[]{SyncKVMessage.class}, RequestOptions.ASYNC());
+        } catch (Exception e) {
+            //FIXME use java logging
+            e.printStackTrace();
+        }
+    }
+
+    static void broadcastToEverybodyElse(JChannel channel, RpcDispatcher rpcDispatcher, MethodCall call) {
+        try {
+            List<Address> everybodyElse = channel.view().getMembers().stream().filter(address-> !address.equals(channel.getAddress())).collect(Collectors.toList());
+            rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.ASYNC());
         } catch (Exception e) {
             //FIXME use java logging
             e.printStackTrace();
@@ -60,20 +72,6 @@ abstract class SyncKVMessage implements Serializable {
 
         TableMetadata getMetadataFor(String name) {
             return metadata.stream().filter(s -> s.name.equals(name)).findFirst().orElse(null);
-        }
-    }
-
-
-    static class PutRequest extends SyncKVMessage implements Serializable {
-        final String table;
-        final String key;
-        final byte[] payload;
-
-        PutRequest(String src, String table, String key, byte[] payload) {
-            super(src);
-            this.table = table;
-            this.key = key;
-            this.payload = payload;
         }
     }
 

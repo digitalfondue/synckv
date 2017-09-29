@@ -97,11 +97,7 @@ public class SyncKV implements Closeable {
 
         bloomFilters.putIfAbsent(tableName, Utils.bloomFilterInstance());
 
-        return new SyncKVTable(store.openMap(tableName),
-                store.openMap(tableName + "__metadata_hash"),
-                store.openMap(tableName +"__metadata_insert"),
-                bloomFilters.get(tableName),
-                rpcDispatcher);
+        return new SyncKVTable(tableName, this);
     }
 
     public static class SyncKVTable {
@@ -109,19 +105,16 @@ public class SyncKV implements Closeable {
         final MVMap<String, byte[]> tableHashMetadata;
         final MVMap<String, Long> tableLatestInsertMetadata;
         final CountingBloomFilter countingBloomFilter;
-        final RpcDispatcher rpcDispatcher;
+        final SyncKV syncKV;
 
 
-        private SyncKVTable(MVMap<String, byte[]> table,
-                            MVMap<String, byte[]> tableHashMetadata,
-                            MVMap<String, Long> tableLatestInsertMetadata,
-                            CountingBloomFilter countingBloomFilter,
-                            RpcDispatcher rpcDispatcher) {
-            this.tableHashMetadata = tableHashMetadata;
-            this.table = table;
-            this.tableLatestInsertMetadata = tableLatestInsertMetadata;
-            this.countingBloomFilter = countingBloomFilter;
-            this.rpcDispatcher = rpcDispatcher;
+        private SyncKVTable(String tableName, SyncKV syncKV) {
+
+            this.table = syncKV.store.openMap(tableName);
+            this.tableHashMetadata = syncKV.store.openMap(tableName + "__metadata_hash");
+            this.tableLatestInsertMetadata = syncKV.store.openMap(tableName +"__metadata_insert");
+            this.countingBloomFilter = syncKV.bloomFilters.get(tableName);
+            this.syncKV = syncKV;
         }
 
         public Iterator<String> keys() {
@@ -157,7 +150,7 @@ public class SyncKV implements Closeable {
             countingBloomFilter.add(newKey);
 
             if (broadcast) {
-                SyncKVMessage.broadcast(rpcDispatcher, new SyncKVMessage.PutRequest(Utils.addressToBase64(rpcDispatcher.getChannel().getAddress()), table.getName(), key, value));
+                SyncKVMessage.broadcastToEverybodyElse(syncKV.channel, syncKV.rpcDispatcher, MessageReceiver.putRequestMethodCall(table.getName(), key, value));
             }
 
             return oldRes;

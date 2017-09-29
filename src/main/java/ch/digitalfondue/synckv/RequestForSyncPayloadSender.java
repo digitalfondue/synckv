@@ -25,7 +25,7 @@ class RequestForSyncPayloadSender implements Runnable {
         //only if leader
         if (channel.getView().getMembers().get(0).equals(channel.getAddress())) {
             processRequestForSync();
-            SyncKVMessage.broadcast(rpcDispatcher, new SyncKVMessage.RequestForSyncPayload(Utils.addressToBase64(channel)));
+            SyncKVMessage.broadcastToEverybodyElse(rpcDispatcher, new SyncKVMessage.RequestForSyncPayload(Utils.addressToBase64(channel)));
         }
     }
 
