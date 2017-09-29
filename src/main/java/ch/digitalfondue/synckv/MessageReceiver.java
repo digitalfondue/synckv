@@ -5,7 +5,9 @@ import ch.digitalfondue.synckv.SyncKVMessage.*;
 import ch.digitalfondue.synckv.bloom.CountingBloomFilter;
 import org.h2.mvstore.MVMap;
 import org.jgroups.Address;
+import org.jgroups.JChannel;
 import org.jgroups.blocks.MethodCall;
+import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
 
 import java.util.*;
@@ -96,7 +98,7 @@ public class MessageReceiver {
                     fullSync.add(t.table);
                 }
             });
-            SyncKVMessage.send(dispatcher(), target, MessageReceiver.syncPayloadMethodCall(getCurrentAddress(), tableMetadata, fullSync));
+            send(dispatcher(), target, MessageReceiver.syncPayloadMethodCall(getCurrentAddress(), tableMetadata, fullSync));
         });
     }
 
@@ -117,7 +119,7 @@ public class MessageReceiver {
             return;
         }
 
-        SyncKVMessage.send(dispatcher(), leader, syncPayloadForLeader(getCurrentAddress(), syncKV.getTableMetadataForSync()));
+        send(dispatcher(), leader, syncPayloadForLeader(getCurrentAddress(), syncKV.getTableMetadataForSync()));
 
     }
 
@@ -168,19 +170,39 @@ public class MessageReceiver {
 
             //chunk
             if (i == 200) {
-                SyncKVMessage.send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
+                send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
                 payload = new HashMap<>();
                 i = 0;
             }
         }
 
         if (payload.size() > 0) {
-            SyncKVMessage.send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
+            send(dispatcher(), src, MessageReceiver.dataToSyncMethodCall(name, payload));
         }
     }
 
     private void syncTableTotally(Address src, String name) {
         SyncKVTable table = syncKV.getTable(name);
         sendDataInChunks(src, name, table.keys(), s -> true, table);
+    }
+
+
+    static void broadcastToEverybodyElse(JChannel channel, RpcDispatcher rpcDispatcher, MethodCall call) {
+        try {
+            List<Address> everybodyElse = channel.view().getMembers().stream().filter(address-> !address.equals(channel.getAddress())).collect(Collectors.toList());
+            rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.ASYNC());
+        } catch (Exception e) {
+            //FIXME use java logging
+            e.printStackTrace();
+        }
+    }
+
+    static void send(RpcDispatcher rpcDispatcher, Address address, MethodCall call) {
+        try {
+            rpcDispatcher.callRemoteMethod(address, call, RequestOptions.ASYNC());
+        } catch (Exception e) {
+            //FIXME use java logging
+            e.printStackTrace();
+        }
     }
 }

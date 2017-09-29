@@ -25,7 +25,7 @@ class RequestForSyncPayloadSender implements Runnable {
         //only if leader
         if (channel.getView().getMembers().get(0).equals(channel.getAddress())) {
             processRequestForSync();
-            SyncKVMessage.broadcastToEverybodyElse(channel, rpcDispatcher, MessageReceiver.requestForSyncPayloadMethodCall(channel.getAddress()));
+            MessageReceiver.broadcastToEverybodyElse(channel, rpcDispatcher, MessageReceiver.requestForSyncPayloadMethodCall(channel.getAddress()));
         }
     }
 
@@ -106,7 +106,7 @@ class RequestForSyncPayloadSender implements Runnable {
         }
 
         tablesToSync.entrySet().stream().filter(kv -> !kv.getValue().isEmpty()).forEach(kv -> {
-            SyncKVMessage.send(rpcDispatcher, kv.getKey(), MessageReceiver.syncPayloadFromMethodCall(kv.getValue()));
+            MessageReceiver.send(rpcDispatcher, kv.getKey(), MessageReceiver.syncPayloadFromMethodCall(kv.getValue()));
         });
 
     }
