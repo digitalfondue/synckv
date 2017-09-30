@@ -8,6 +8,7 @@ import org.jgroups.JChannel;
 import org.jgroups.blocks.MethodCall;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
+import org.jgroups.util.RspList;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -199,6 +200,32 @@ public class RpcFacade {
 
     public void handleSyncPayloadForLeader(String src, List<TableMetadata> payload) {
         syncPayloads.put(Utils.fromBase64(src), payload);
+    }
+
+    //-----------
+
+    byte[] getValue(Address src, String table, String key) {
+        JChannel channel = syncKV.channel;
+        List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
+
+        MethodCall call = new MethodCall("handleGetValue", new Object[]{Utils.addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
+        byte[] res = null;
+        try {
+            RspList<byte[]> resp = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
+            res = resp.getResults().stream().filter(Objects::nonNull).findFirst().orElse(null);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error while calling getValue", e);
+        }
+        return res;
+    }
+
+    public byte[] handleGetValue(String src, String table, String key) {
+        Address address = Utils.fromBase64(src);
+        if(address.equals(getCurrentAddress())) {
+            return null;
+        } else {
+            return syncKV.getTable(table).get(key);
+        }
     }
 
     //-----------

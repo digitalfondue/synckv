@@ -128,7 +128,7 @@ public class SyncKV implements Closeable {
             return Utils.hash(kv);
         }
 
-        public boolean present(String key, byte[] value) {
+        boolean present(String key, byte[] value) {
             byte[] res = tableHashMetadata.get(key);
             return res == null ? false : Utils.toKey(hashFor(key, value)).equals(Utils.toKey(res));
         }
@@ -158,14 +158,18 @@ public class SyncKV implements Closeable {
         }
 
         public byte[] get(String key) {
-            return table.get(key);
+            byte[] res = table.get(key);
+            if(res != null) { //try to fetch the value in the cluster if it's not present locally
+                res = syncKV.rpcFacade.getValue(syncKV.channel.getAddress(), table.getName(), key);
+            }
+            return res;
         }
 
-        public long getInsertTime(String key) {
+        long getInsertTime(String key) {
             return tableLatestInsertMetadata.get(key);
         }
 
-        public boolean isNewer(String k, long time) {
+        boolean isNewer(String k, long time) {
             return time > getInsertTime(k);
         }
     }
