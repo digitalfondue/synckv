@@ -22,7 +22,7 @@ public class RpcFacade {
     private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
 
     private final SyncKV syncKV;
-    private final Map<Address, List<TableMetadata>> syncPayloads;
+    private final Map<Address, List<TableMetadataWithHashedBloomFilter>> syncPayloads;
     private final AtomicLong lastDataSync = new AtomicLong();
     private RpcDispatcher rpcDispatcher;
 
@@ -194,11 +194,11 @@ public class RpcFacade {
 
     //-----------
 
-    void syncPayloadForLeader(Address address, Address currentAddress, List<TableMetadata> tableMetadataForSync) {
+    void syncPayloadForLeader(Address address, Address currentAddress, List<TableMetadataWithHashedBloomFilter> tableMetadataForSync) {
         send(address, new MethodCall("handleSyncPayloadForLeader", new Object[]{Utils.addressToBase64(currentAddress), tableMetadataForSync}, new Class[]{String.class, List.class}));
     }
 
-    public void handleSyncPayloadForLeader(String src, List<TableMetadata> payload) {
+    public void handleSyncPayloadForLeader(String src, List<TableMetadataWithHashedBloomFilter> payload) {
         syncPayloads.put(Utils.fromBase64(src), payload);
     }
 

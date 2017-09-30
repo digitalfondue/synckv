@@ -8,7 +8,7 @@ import java.util.*;
 class RequestForSyncPayloadSender implements Runnable {
 
     private final JChannel channel;
-    private final Map<Address, List<TableMetadata>> syncPayloads;
+    private final Map<Address, List<TableMetadataWithHashedBloomFilter>> syncPayloads;
     private final SyncKV syncKV;
 
     RequestForSyncPayloadSender(SyncKV syncKV) {
@@ -27,32 +27,32 @@ class RequestForSyncPayloadSender implements Runnable {
     }
 
     //using only bloomFilter as a condition, we collapse all the similar one in the HashSet
-    private static class AddressBloomFilter {
+    private static class AddressHashedBloomFilter {
         private final Address address;
-        private final byte[] bloomFilter;
+        private final byte[] hashedBloomFilter;
 
-        private AddressBloomFilter(Address address, byte[] bloomFilter) {
+        private AddressHashedBloomFilter(Address address, byte[] hashedBloomFilter) {
             this.address = address;
-            this.bloomFilter = bloomFilter;
+            this.hashedBloomFilter = hashedBloomFilter;
         }
 
         @Override
         public int hashCode() {
-            return Arrays.hashCode(bloomFilter);
+            return Arrays.hashCode(hashedBloomFilter);
         }
 
         @Override
         public boolean equals(Object obj) {
-            if(obj == null || ! (obj instanceof AddressBloomFilter)) {
+            if(obj == null || ! (obj instanceof AddressHashedBloomFilter)) {
                 return false;
             }
-            return Arrays.equals(bloomFilter, ((AddressBloomFilter) obj).bloomFilter);
+            return Arrays.equals(hashedBloomFilter, ((AddressHashedBloomFilter) obj).hashedBloomFilter);
         }
     }
 
     //given the currently present sync payload request, route the requests correctly between the elements of the cluster
     private void processRequestForSync() {
-        Map<Address, List<TableMetadata>> workingCopy = new HashMap<>(syncPayloads);
+        Map<Address, List<TableMetadataWithHashedBloomFilter>> workingCopy = new HashMap<>(syncPayloads);
         syncPayloads.clear();
 
         // add own copy
@@ -60,9 +60,9 @@ class RequestForSyncPayloadSender implements Runnable {
         //
 
         //
-        Map<String, Set<AddressBloomFilter>> tablePresenceCollapsed = new HashMap<>();
+        Map<String, Set<AddressHashedBloomFilter>> tablePresenceCollapsed = new HashMap<>();
         Map<String, Set<Address>> tablePresence = new HashMap<>();
-        for (Map.Entry<Address, List<TableMetadata>> e : workingCopy.entrySet()) {
+        for (Map.Entry<Address, List<TableMetadataWithHashedBloomFilter>> e : workingCopy.entrySet()) {
             e.getValue().stream().forEach(tm -> {
 
                 if (!tablePresenceCollapsed.containsKey(tm.getName())) {
@@ -73,7 +73,7 @@ class RequestForSyncPayloadSender implements Runnable {
                     tablePresence.put(tm.getName(), new HashSet<>());
                 }
 
-                tablePresenceCollapsed.get(tm.getName()).add(new AddressBloomFilter(e.getKey(), tm.bloomFilter));
+                tablePresenceCollapsed.get(tm.getName()).add(new AddressHashedBloomFilter(e.getKey(), tm.hashedBloomFilter));
                 tablePresence.get(tm.getName()).add(e.getKey());
             });
         }
@@ -90,12 +90,12 @@ class RequestForSyncPayloadSender implements Runnable {
                     tablesToSync.get(a).add(new TableAddress(name, Utils.addressToBase64(toFetch), true));
                 } else {
                     //handle case where table is present
-                    byte[] cbf = workingCopy.get(a).stream().filter(s -> s.name.equals(name)).findFirst().orElse(null).bloomFilter;
+                    byte[] cbf = workingCopy.get(a).stream().filter(s -> s.name.equals(name)).findFirst().orElse(null).hashedBloomFilter;
 
                     //find the first table where the bloom filter is not equal
                     tablePresenceCollapsed.get(name).stream()
                             .filter(remote -> !remote.address.equals(a))
-                            .filter(remote -> !Arrays.equals(remote.bloomFilter, cbf))
+                            .filter(remote -> !Arrays.equals(remote.hashedBloomFilter, cbf))
                             .findFirst().ifPresent(remote -> tablesToSync.get(a).add(new TableAddress(name, Utils.addressToBase64(remote.address), false))
                     );
                 }

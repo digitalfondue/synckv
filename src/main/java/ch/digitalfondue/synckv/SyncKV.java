@@ -10,6 +10,8 @@ import org.jgroups.blocks.RpcDispatcher;
 
 import java.io.Closeable;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -23,7 +25,7 @@ public class SyncKV implements Closeable {
     final ConcurrentHashMap<String, CountingBloomFilter> bloomFilters = new ConcurrentHashMap<>();
     final JChannel channel;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
-    final Map<Address, List<TableMetadata>> syncPayloads = new ConcurrentHashMap<>();
+    final Map<Address, List<TableMetadataWithHashedBloomFilter>> syncPayloads = new ConcurrentHashMap<>();
     final RpcFacade rpcFacade;
 
     public SyncKV() throws Exception {
@@ -66,10 +68,11 @@ public class SyncKV implements Closeable {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).collect(Collectors.toSet());
     }
 
-    List<TableMetadata> getTableMetadataForSync() {
+    List<TableMetadataWithHashedBloomFilter> getTableMetadataForSync() {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME)
                 .sorted()
                 .map(this::getTableMetadata)
+                .map(tableMetadata -> new TableMetadataWithHashedBloomFilter(tableMetadata.name, tableMetadata.count, digest(tableMetadata.bloomFilter)))
                 .collect(Collectors.toList());
     }
 
@@ -78,6 +81,20 @@ public class SyncKV implements Closeable {
             return new TableMetadata(name, store.openMap(name).size(), bloomFilters.get(name).toByteArray());
         } else {
             return new TableMetadata(name, 0, null);
+        }
+    }
+
+    private static byte[] digest(byte[] input) {
+
+        if (input == null) {
+            return null;
+        }
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(input);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
     }
 
