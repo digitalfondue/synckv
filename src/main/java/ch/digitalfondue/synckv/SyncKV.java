@@ -158,8 +158,12 @@ public class SyncKV implements Closeable {
         }
 
         public byte[] get(String key) {
+            return get(key, false);
+        }
+
+        byte[] get(String key, boolean localOnly) {
             byte[] res = table.get(key);
-            if(res != null) { //try to fetch the value in the cluster if it's not present locally
+            if(localOnly != true && res == null) { //try to fetch the value in the cluster if it's not present locally
                 res = syncKV.rpcFacade.getValue(syncKV.channel.getAddress(), table.getName(), key);
             }
             return res;

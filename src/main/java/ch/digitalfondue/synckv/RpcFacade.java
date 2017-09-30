@@ -171,7 +171,7 @@ public class RpcFacade {
             String key = s.next();
             if (conditionToAdd.test(key)) {
                 i++;
-                payload.put(key, new PayloadAndTime(table.get(key), table.getInsertTime(key)));
+                payload.put(key, new PayloadAndTime(table.get(key, true), table.getInsertTime(key)));
             }
 
             //chunk
@@ -211,8 +211,8 @@ public class RpcFacade {
         MethodCall call = new MethodCall("handleGetValue", new Object[]{Utils.addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
         byte[] res = null;
         try {
-            RspList<byte[]> resp = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
-            res = resp.getResults().stream().filter(Objects::nonNull).findFirst().orElse(null);
+            RspList<byte[]> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
+            res = rsps.getResults().stream().filter(Objects::nonNull).findFirst().orElse(null);
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error while calling getValue", e);
         }
@@ -224,7 +224,7 @@ public class RpcFacade {
         if(address.equals(getCurrentAddress())) {
             return null;
         } else {
-            return syncKV.getTable(table).get(key);
+            return syncKV.getTable(table).get(key, true);
         }
     }
 

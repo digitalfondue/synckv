@@ -41,6 +41,7 @@ public class Test {
                     String key = Integer.toString(keyGenerator.getAndIncrement());
                     System.err.println("adding in kv with key " + key);
                     table.put(key, "hello world 11".getBytes(StandardCharsets.UTF_8));
+                    System.err.println("trying to fetch distributed get " + new String(k2.getTable("attendees").get(key), StandardCharsets.UTF_8));
                 } else {
                     String key = Integer.toString(keyGenerator.getAndIncrement());
                     System.err.println("adding in kv2 with key " + key);
