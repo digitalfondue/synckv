@@ -208,6 +208,10 @@ public class RpcFacade {
         JChannel channel = syncKV.channel;
         List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
 
+        if (everybodyElse.isEmpty()) {
+            return null;
+        }
+
         MethodCall call = new MethodCall("handleGetValue", new Object[]{Utils.addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
         byte[] res = null;
         try {
@@ -235,6 +239,9 @@ public class RpcFacade {
         try {
             JChannel channel = syncKV.channel;
             List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
+            if (everybodyElse.isEmpty()) {
+                return;
+            }
             rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.ASYNC());
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error while calling broadcastToEverybodyElse", e);
