@@ -10,7 +10,7 @@ It has the following limitations:
 
  - only put (insert/update)
  - no delete operation
- - key are string, value are byte array
+ - key are string, value are byte array (a key: string, value: string api is exposed too)
  - it's for relatively small database
  - untested :D
  

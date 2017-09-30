@@ -58,6 +58,10 @@ public class SyncKV implements Closeable {
         scheduledExecutor.scheduleAtFixedRate(new RequestForSyncPayloadSender(this), 0, 10, TimeUnit.SECONDS);
     }
 
+    public boolean isLeader() {
+        return channel.getView().getMembers().get(0).equals(channel.getAddress());
+    }
+
     public Set<String> getTables() {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).collect(Collectors.toSet());
     }
@@ -137,6 +141,11 @@ public class SyncKV implements Closeable {
             return put(key, value, true);
         }
 
+        public synchronized String put(String key, String value) {
+            byte[] res = put(key, value.getBytes(StandardCharsets.UTF_8));
+            return res == null ? null : new String(res, StandardCharsets.UTF_8);
+        }
+
         synchronized byte[] put(String key, byte[] value, boolean broadcast) {
             int hash = hashFor(key, value);
 
@@ -159,6 +168,11 @@ public class SyncKV implements Closeable {
 
         public byte[] get(String key) {
             return get(key, false);
+        }
+
+        public String getAsString(String key) {
+            byte[] res = get(key);
+            return res == null ? null : new String(res, StandardCharsets.UTF_8);
         }
 
         byte[] get(String key, boolean localOnly) {

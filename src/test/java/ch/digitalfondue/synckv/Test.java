@@ -1,6 +1,5 @@
 package ch.digitalfondue.synckv;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -22,7 +21,7 @@ public class Test {
 
             String key = Integer.toString(keyGenerator.getAndIncrement());
             System.err.println("adding in kv with key " + key);
-            table.put(key, ("hello world " + i).getBytes(StandardCharsets.UTF_8));
+            table.put(key, ("hello world " + i));
         }
         kv.commit();
 
@@ -40,12 +39,12 @@ public class Test {
                 if (r.nextBoolean()) {
                     String key = Integer.toString(keyGenerator.getAndIncrement());
                     System.err.println("adding in kv with key " + key);
-                    table.put(key, "hello world 11".getBytes(StandardCharsets.UTF_8));
-                    System.err.println("trying to fetch distributed get " + new String(k2.getTable("attendees").get(key), StandardCharsets.UTF_8));
+                    table.put(key, "hello world 11");
+                    System.err.println("trying to fetch distributed get " + k2.getTable("attendees").getAsString(key));
                 } else {
                     String key = Integer.toString(keyGenerator.getAndIncrement());
                     System.err.println("adding in kv2 with key " + key);
-                    k2.getTable("attendees").put(key, "hello world 11".getBytes(StandardCharsets.UTF_8));
+                    k2.getTable("attendees").put(key, "hello world 11");
                 }
 
 
