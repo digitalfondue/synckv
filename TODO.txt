@@ -1,1 +1,3 @@
 - cleanup, documentation, tests, ... ?
+- add a more structured data support so we can build some kind of query system over it
+- add a more strong sync guarantee...

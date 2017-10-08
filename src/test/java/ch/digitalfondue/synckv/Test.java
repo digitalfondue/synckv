@@ -31,10 +31,10 @@ public class Test {
         if (true) {
             new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
 
-
-                System.err.println("keys in kv " + new ArrayList<>(kv.getTable("attendees").table.keySet()));
-                System.err.println("keys in k2 " + new ArrayList<>(k2.getTable("attendees").table.keySet()));
-                System.err.println("keys in k3 " + new ArrayList<>(k3.getTable("attendees").table.keySet()));
+                System.err.println("members of the cluster: " + kv.getClusterMembersName());
+                System.err.println("keys in kv " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("attendees").table.keySet()));
+                System.err.println("keys in k2 " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("attendees").table.keySet()));
+                System.err.println("keys in k3 " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("attendees").table.keySet()));
 
                 if (r.nextBoolean()) {
                     String key = Integer.toString(keyGenerator.getAndIncrement());

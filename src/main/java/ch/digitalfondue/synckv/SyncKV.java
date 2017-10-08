@@ -64,6 +64,14 @@ public class SyncKV implements Closeable {
         return channel.getView().getMembers().get(0).equals(channel.getAddress());
     }
 
+    public String getClusterMemberName() {
+        return channel.getAddressAsString();
+    }
+
+    public List<String> getClusterMembersName() {
+        return channel.view().getMembers().stream().map(Address::toString).collect(Collectors.toList());
+    }
+
     public Set<String> getTables() {
         return store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).collect(Collectors.toSet());
     }
