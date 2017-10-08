@@ -9,7 +9,7 @@
 
     <groupId>ch.digitalfondue.synckv</groupId>
     <artifactId>synckv</artifactId>
-    <version>0.1.4-SNAPSHOT</version>
+    <version>0.1.4</version>
     <packaging>jar</packaging>
     <inceptionYear>2017</inceptionYear>
 
@@ -27,7 +27,7 @@
         <connection>scm:git:git@github.com:digitalfondue/synckv.git</connection>
         <developerConnection>scm:git:git@github.com:digitalfondue/synckv.git</developerConnection>
         <url>https://github.com/digitalfondue/synckv.git</url>
-        <tag>HEAD</tag>
+        <tag>synckv-0.1.4</tag>
     </scm>
 
     <developers>
