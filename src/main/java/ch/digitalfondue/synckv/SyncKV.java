@@ -151,6 +151,10 @@ public class SyncKV implements Closeable {
             return table.keyIterator(table.firstKey());
         }
 
+        public long count() {
+            return table.sizeAsLong();
+        }
+
         static int hashFor(String key, byte[] value) {
             byte[] k = key.getBytes(StandardCharsets.UTF_8);
             byte[] kv = Utils.concatenate(k, value);
