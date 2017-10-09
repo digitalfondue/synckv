@@ -9,6 +9,7 @@ import org.jgroups.JChannel;
 import org.jgroups.blocks.RpcDispatcher;
 
 import java.io.Closeable;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -34,7 +35,7 @@ public class SyncKV implements Closeable {
 
     static final Predicate<String> IS_VALID_PUBLIC_TABLE_NAME = name -> !name.contains("__");
 
-    public SyncKV(String fileName, String channelName) throws Exception {
+    public SyncKV(String fileName, String channelName, InputStream jGroupsConfiguration) throws Exception {
         store = MVStore.open(fileName);
         store.getMapNames().stream().filter(IS_VALID_PUBLIC_TABLE_NAME).forEach(name -> {
             bloomFilters.putIfAbsent(name, Utils.bloomFilterInstance());
@@ -48,7 +49,7 @@ public class SyncKV implements Closeable {
             }
         });
 
-        channel = new JChannel();
+        channel = jGroupsConfiguration == null ? new JChannel() : new JChannel(jGroupsConfiguration);
         channel.connect(channelName);
 
         this.rpcFacade = new RpcFacade(this);
@@ -58,6 +59,10 @@ public class SyncKV implements Closeable {
         scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 
         scheduledExecutor.scheduleAtFixedRate(new RequestForSyncPayloadSender(this), 0, 10, TimeUnit.SECONDS);
+    }
+
+    public SyncKV(String fileName, String channelName) throws Exception {
+        this(fileName, channelName, null);
     }
 
     public boolean isLeader() {
