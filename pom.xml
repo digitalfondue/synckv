@@ -48,12 +48,12 @@
         <dependency>
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups</artifactId>
-            <version>4.0.6.Final</version>
+            <version>4.0.11.Final</version>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2-mvstore</artifactId>
-            <version>1.4.196</version>
+            <version>1.4.197</version>
         </dependency>
     </dependencies>
 
