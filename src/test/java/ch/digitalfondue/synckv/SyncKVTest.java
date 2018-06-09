@@ -10,8 +10,6 @@ import java.nio.charset.StandardCharsets;
 public class SyncKVTest {
 
     public static void main(String[] args) throws Exception {
-        SyncKV.ensureProtocol();
-
         SyncKV syncKV = new SyncKV(null, "my_password");
 
         syncKV.channel.setReceiver(new ReceiverAdapter() {

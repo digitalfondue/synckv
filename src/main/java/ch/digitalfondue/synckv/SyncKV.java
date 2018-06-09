@@ -24,6 +24,13 @@ public class SyncKV {
         ensureProtocol();
     }
 
+    /**
+     * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
+     *
+     * @param fileName
+     * @param password
+     * @param channel
+     */
     public SyncKV(String fileName, String password, JChannel channel) {
 
         this.channel = channel;
