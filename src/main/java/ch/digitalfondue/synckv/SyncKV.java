@@ -7,6 +7,7 @@ import org.jgroups.protocols.*;
 import org.jgroups.protocols.pbcast.GMS;
 import org.jgroups.protocols.pbcast.NAKACK2;
 import org.jgroups.protocols.pbcast.STABLE;
+import org.jgroups.protocols.pbcast.STATE_TRANSFER;
 import org.jgroups.stack.Protocol;
 
 import java.security.SecureRandom;
@@ -84,7 +85,9 @@ public class SyncKV {
                     new STABLE(),
                     new GMS(),
                     new MFC(),
-                    new FRAG2()
+                    new FRAG2(),
+                    new RSVP(),
+                    new STATE_TRANSFER()
             ));
 
             return new JChannel(protocols).name("SyncKV");
