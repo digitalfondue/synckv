@@ -10,3 +10,5 @@
     - binary trie with a merkle tree twist: at initialization: define depth for creating the whole empty tree + hash function.
         -> add insertion function + boolean for updating hash
         -> add an update hash function for updating the whole tree -> useful for bulk insert
+
+- clock skew detection
