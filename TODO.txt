@@ -1,3 +1,12 @@
 - cleanup, documentation, tests, ... ?
 - add a more structured data support so we can build some kind of query system over it
 - add a more strong sync guarantee...
+- programmatic configuration of the JGroups channel: http://belaban.blogspot.com/2010/10/programmatic-creation-of-channel.html
+- for the better sync guarantee: https://bitcoin.stackexchange.com/questions/51423/how-do-you-create-a-merkle-tree-that-lets-you-insert-and-delete-elements-without/52811#52811
+    - for insertion order, hash-> truncate to last 8(?) bit
+        - leaf node -> contain a sortedtree
+
+
+    - binary trie with a merkle tree twist: at initialization: define depth for creating the whole empty tree + hash function.
+        -> add insertion function + boolean for updating hash
+        -> add an update hash function for updating the whole tree -> useful for bulk insert
