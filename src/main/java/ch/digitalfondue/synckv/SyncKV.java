@@ -1,7 +1,9 @@
 package ch.digitalfondue.synckv;
 
 import org.h2.mvstore.MVStore;
+import org.jgroups.Address;
 import org.jgroups.JChannel;
+import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.conf.ClassConfigurator;
 import org.jgroups.protocols.*;
 import org.jgroups.protocols.pbcast.GMS;
@@ -14,16 +16,19 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class SyncKV {
-
-    final JChannel channel;
-    final MVStore store;
-    final long seed;
 
     static {
         ensureProtocol();
     }
+
+
+    private final JChannel channel;
+    private final MVStore store;
+    private final long seed;
+    private final RpcFacade rpcFacade;
 
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
@@ -32,7 +37,7 @@ public class SyncKV {
      * @param password
      * @param channel
      */
-    public SyncKV(String fileName, String password, JChannel channel) {
+    public SyncKV(String fileName, String password, JChannel channel, String channelName) {
 
         this.channel = channel;
         MVStore.Builder builder = new MVStore.Builder().fileName(fileName);
@@ -46,15 +51,26 @@ public class SyncKV {
 
         if (channel != null) {
             try {
-                channel.connect("SyncKV");
+                channel.connect(channelName);
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }
         }
+
+        this.rpcFacade = new RpcFacade(this);
+        this.rpcFacade.setRpcDispatcher(new RpcDispatcher(channel, rpcFacade));
+    }
+
+    public SyncKV(String fileName, String password, String channelName) {
+        this(fileName, password, buildChannel(password), channelName);
     }
 
     public SyncKV(String fileName, String password) {
-        this(fileName, password, buildChannel(password));
+        this(fileName, password, buildChannel(password), "syncKV");
+    }
+
+    public SyncKVTable getTable(String name) {
+        return new SyncKVTable(name, store, seed, rpcFacade, channel);
     }
 
     public static void ensureProtocol() {
@@ -76,7 +92,7 @@ public class SyncKV {
                     new FD_ALL(),
                     new VERIFY_SUSPECT(),
                     new BARRIER()));
-            if(password != null) {
+            if (password != null) {
                 protocols.add(new SymEncryptWithKeyFromMemory(password));
             }
             protocols.addAll(Arrays.asList(
@@ -90,14 +106,22 @@ public class SyncKV {
                     new STATE_TRANSFER()
             ));
 
-            return new JChannel(protocols).name("SyncKV");
+            return new JChannel(protocols);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
     }
 
+    JChannel getChannel() {
+        return channel;
+    }
 
-    public SyncKVTable getTable(String name) {
-        return new SyncKVTable(name, store, seed);
+
+    public String getClusterMemberName() {
+        return channel.getAddressAsString();
+    }
+
+    public List<String> getClusterMembersName() {
+        return channel.view().getMembers().stream().map(Address::toString).collect(Collectors.toList());
     }
 }

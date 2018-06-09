@@ -7,11 +7,10 @@ import java.util.function.ToIntFunction;
 
 /**
  * Inspired by https://bitcoin.stackexchange.com/questions/51423/how-do-you-create-a-merkle-tree-that-lets-you-insert-and-delete-elements-without/52811#52811 .
- *
+ * <p>
  * See https://wiki.apache.org/cassandra/AntiEntropy .
- *
+ * <p>
  * Childs may be 2 (for binary selection) or more
- *
  */
 public class MerkleTreeVariant {
 
@@ -21,13 +20,13 @@ public class MerkleTreeVariant {
 
     public MerkleTreeVariant(int depth, int breadth, ToIntFunction<ByteBuffer> hashFunction) {
 
-        if(depth == 0) {
+        if (depth == 0) {
             this.content = new TreeSet<>();
             this.childs = null;
         } else {
             int childDepth = depth - 1;
             this.childs = new MerkleTreeVariant[breadth];
-            for(int i = 0; i < breadth; i++) {
+            for (int i = 0; i < breadth; i++) {
                 this.childs[i] = new MerkleTreeVariant(childDepth, breadth, hashFunction);
             }
             this.content = null;

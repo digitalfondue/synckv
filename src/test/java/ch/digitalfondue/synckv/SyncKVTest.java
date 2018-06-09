@@ -1,41 +1,60 @@
 package ch.digitalfondue.synckv;
 
-import org.jgroups.Message;
-import org.jgroups.ReceiverAdapter;
-import org.jgroups.View;
-import org.jgroups.util.Util;
-
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Random;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class SyncKVTest {
 
-    public static void main(String[] args) throws Exception {
-        SyncKV syncKV = new SyncKV(null, "my_password");
+    public static void main(String[] args) {
 
-        syncKV.channel.setReceiver(new ReceiverAdapter() {
-            public void viewAccepted(View new_view) {
-                System.out.println("view: " + new_view);
-            }
+        SyncKV kv = new SyncKV(null, "SyncKV");
+        SyncKVTable table = kv.getTable("attendees");
 
-            public void receive(Message msg) {
-                System.out.println("<< " + msg.getObject() + " [" + msg.getSrc() + "]");
-            }
-        });
+        Random r = new Random();
 
-        SyncKVTable table = syncKV.getTable("test");
+        AtomicInteger keyGenerator = new AtomicInteger();
 
-        table.put("my_key", "my value 1".getBytes(StandardCharsets.UTF_8));
-        byte[] res1 = table.get("my_key");
+        for (int i = 0; i < 10; i++) {
 
-        System.err.println("res1 is " + new String(res1, StandardCharsets.UTF_8));
+            String key = Integer.toString(keyGenerator.getAndIncrement());
+            System.err.println("adding in kv with key " + key);
+            table.put(key, ("hello world " + i).getBytes(StandardCharsets.UTF_8));
+        }
 
-        table.put("my_key", "my value 2".getBytes(StandardCharsets.UTF_8));
-        byte[] res2 = table.get("my_key");
-        System.err.println("res2 is " + new String(res2, StandardCharsets.UTF_8));
 
-        for (; ; ) {
-            String line = Util.readStringFromStdin(": ");
-            syncKV.channel.send(null, line);
+        SyncKV k2 = new SyncKV(null, "SyncKV");
+        SyncKV k3 = new SyncKV(null, "SyncKV");
+
+        if (true) {
+            new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
+
+                System.err.println("members of the cluster: " + kv.getClusterMembersName());
+                System.err.println("keys in kv " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("attendees").keySet()));
+                System.err.println("keys in k2 " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("attendees").keySet()));
+                System.err.println("keys in k3 " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("attendees").keySet()));
+
+                String key = Integer.toString(keyGenerator.getAndIncrement());
+                String value = "hello world " + keyGenerator.get();
+                if (r.nextBoolean()) {
+
+                    System.err.println("adding in kv with key " + key + " and value " + value);
+                    table.put(key, value.getBytes(StandardCharsets.UTF_8));
+
+                    byte[] res = (r.nextBoolean() ? k2 : k3).getTable("attendees").get(key);
+
+                    String toFormat = res != null ? new String(res, StandardCharsets.UTF_8) : null;
+                    System.err.println("trying to fetch distributed get " + toFormat);
+                } else {
+                    System.err.println("adding in kv2 with key " + key + " and value " + value);
+                    k2.getTable("attendees").put(key, value.getBytes(StandardCharsets.UTF_8));
+                }
+
+
+            }, 20, 20, TimeUnit.SECONDS);
         }
     }
 }
