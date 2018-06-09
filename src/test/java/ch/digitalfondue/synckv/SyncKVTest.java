@@ -4,6 +4,7 @@ import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
+import org.jgroups.conf.ClassConfigurator;
 import org.jgroups.protocols.*;
 import org.jgroups.protocols.pbcast.GMS;
 import org.jgroups.protocols.pbcast.NAKACK2;
@@ -20,6 +21,9 @@ public class SyncKVTest {
         //for programmatic configuration, imported from https://github.com/belaban/JGroups/blob/master/src/org/jgroups/demos/ProgrammaticChat.java
         // switched to TCP_NIO2 and MPING
         // TODO: custom encryption provider for loading the encryption key from memory and not from  a keystore
+
+        ClassConfigurator.addProtocol((short) 1024, SymEncryptWithKeyFromMemory.class);
+
         Protocol[] prot_stack = {
                 new TCP_NIO2(),
                 new MPING(),
@@ -28,11 +32,12 @@ public class SyncKVTest {
                 new FD_ALL(),
                 new VERIFY_SUSPECT(),
                 new BARRIER(),
+                new SymEncryptWithKeyFromMemory("my_password"),
                 new NAKACK2(),
                 new UNICAST3(),
                 new STABLE(),
                 new GMS(),
-                new UFC(),
+                //new UFC(),
                 new MFC(),
                 new FRAG2()};
         JChannel channel = new JChannel(prot_stack).name("SyncKV");
