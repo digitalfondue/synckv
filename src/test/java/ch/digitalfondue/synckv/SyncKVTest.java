@@ -20,7 +20,7 @@ public class SyncKVTest {
 
         for (int i = 0; i < 10; i++) {
 
-            String key = Integer.toString(keyGenerator.getAndIncrement());
+            String key = Integer.toString(keyGenerator.incrementAndGet());
             System.err.println("adding in kv with key " + key);
             table.put(key, ("hello world " + i).getBytes(StandardCharsets.UTF_8));
         }
@@ -37,7 +37,7 @@ public class SyncKVTest {
                 System.err.println("keys in k2 " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("attendees").keySet()));
                 System.err.println("keys in k3 " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("attendees").keySet()));
 
-                String key = Integer.toString(keyGenerator.getAndIncrement());
+                String key = Integer.toString(keyGenerator.incrementAndGet());
                 String value = "hello world " + keyGenerator.get();
                 if (r.nextBoolean()) {
 

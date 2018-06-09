@@ -7,8 +7,9 @@ import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.util.RspList;
 
+import java.nio.ByteBuffer;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 public class RpcFacade {
 
     private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
+
 
 
     private final SyncKV syncKV;
@@ -34,7 +36,6 @@ public class RpcFacade {
     }
 
     // --- PUT ---------
-
 
     void putRequest(Address source, String table, String key, byte[] value) {
         broadcastToEverybodyElse(new MethodCall("handlePutRequest", new Object[]{Utils.addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, String.class, byte[].class}));
@@ -56,7 +57,9 @@ public class RpcFacade {
 
     // --- GET ---------
 
-    byte[] getValue(Address src, String table, String key) {
+    private static final Comparator<byte[][]> DESC_METADATA_ORDER = Comparator.<byte[][], ByteBuffer>comparing(payload -> ByteBuffer.wrap(payload[0])).reversed();
+
+    byte[][] getValue(Address src, String table, String key) {
         JChannel channel = syncKV.getChannel();
         List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
 
@@ -65,22 +68,29 @@ public class RpcFacade {
         }
 
         MethodCall call = new MethodCall("handleGetValue", new Object[]{Utils.addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
-        byte[] res = null;
+        byte[][] res = null;
         try {
-            RspList<byte[]> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
-            res = rsps.getResults().stream().filter(Objects::nonNull).findFirst().orElse(null);
+            RspList<byte[][]> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
+
+            //fetch the value with the "biggest" metadata concatenate(insertion_time,seed)
+            res = rsps.getResults()
+                    .stream()
+                    .filter(payload-> payload != null && payload[0] != null)
+                    .sorted(DESC_METADATA_ORDER)
+                    .findFirst()
+                    .orElse(null);
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error while calling getValue", e);
         }
         return res;
     }
 
-    public byte[] handleGetValue(String src, String table, String key) {
+    public byte[][] handleGetValue(String src, String table, String key) {
         Address address = Utils.fromBase64(src);
         if (address.equals(getCurrentAddress())) {
             return null;
         } else {
-            return syncKV.getTable(table).get(key, true);
+            return syncKV.getTable(table).get(key, false);
         }
     }
 
