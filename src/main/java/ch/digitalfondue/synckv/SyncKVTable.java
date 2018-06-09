@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class SyncKVTable {
@@ -36,7 +37,10 @@ public class SyncKVTable {
     }
 
     public Set<String> keySet() {
-        return table.keySet().stream().map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8)).collect(Collectors.toSet());
+        return table.keySet()
+                .stream()
+                .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8)) //trim away the metadata
+                .collect(Collectors.toCollection(TreeSet::new)); //keep the order
     }
 
     synchronized boolean put(String key, byte[] value, boolean broadcast) {
