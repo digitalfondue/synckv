@@ -18,19 +18,23 @@ public class MerkleTreeVariantRoot {
 
     private final Node[] childs;
     private int hash;
+    private final int depth;
 
     public MerkleTreeVariantRoot(int depth, int breadth) {
-        int childDepth = depth - 1;
         this.childs = new Node[breadth];
-        for (int i = 0; i < breadth; i++) {
-            this.childs[i] = new Node(childDepth, breadth, null);
-        }
+        this.depth = depth;
     }
 
     public synchronized void add(byte[] value) {
+
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
         int bucket = hashWrappedValue % childs.length;
+
+        if (childs[bucket] == null) {
+            childs[bucket] = new Node(depth - 1, childs.length, null);
+        }
+
         childs[bucket].add(wrapped, hashWrappedValue - bucket);
 
         hash = computeHashFor(childs);
@@ -64,7 +68,6 @@ public class MerkleTreeVariantRoot {
         }
 
         void add(ByteBuffer wrapped, int resultingHash) {
-
             //
             if (depth == 0) {
 
