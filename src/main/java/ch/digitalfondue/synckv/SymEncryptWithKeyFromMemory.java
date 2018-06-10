@@ -10,7 +10,7 @@ import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
-public class SymEncryptWithKeyFromMemory extends Encrypt<KeyStore.SecretKeyEntry> {
+class SymEncryptWithKeyFromMemory extends Encrypt<KeyStore.SecretKeyEntry> {
 
     private final String password;
 
@@ -25,26 +25,20 @@ public class SymEncryptWithKeyFromMemory extends Encrypt<KeyStore.SecretKeyEntry
         this.sym_algorithm = "AES";
 
         if (this.secret_key == null) {
-            prepareSecretKey();
+            this.setKeyStoreEntry(null);
         }
         super.init();
     }
 
-    private void prepareSecretKey() {
-        this.setKeyStoreEntry(null);
-    }
-
     @Override
     public void setKeyStoreEntry(KeyStore.SecretKeyEntry entry) {
-        SecretKeySpec secretKeySpec = new SecretKeySpec(stretchKey(password).getEncoded(), "AES");
-        this.secret_key = secretKeySpec;
+        this.secret_key = new SecretKeySpec(stretchKey(password).getEncoded(), "AES");
     }
 
     private static SecretKey stretchKey(String password) {
         try {
             SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
-            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), new byte[]{0}, 4096, 256);
-            return factory.generateSecret(spec);
+            return factory.generateSecret(new PBEKeySpec(password.toCharArray(), new byte[]{0}, 4096, 256));
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new IllegalStateException();
         }

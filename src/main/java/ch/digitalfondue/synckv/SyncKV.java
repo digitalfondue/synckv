@@ -24,10 +24,9 @@ public class SyncKV {
         ensureProtocol();
     }
 
-
+    private final SecureRandom random;
     private final JChannel channel;
     private final MVStore store;
-    private final long seed;
     private final RpcFacade rpcFacade;
 
     /**
@@ -45,7 +44,7 @@ public class SyncKV {
             builder.encryptionKey(password.toCharArray());
         }
 
-        this.seed = new SecureRandom().nextLong();
+        this.random = new SecureRandom();
 
         this.store = builder.open();
 
@@ -70,7 +69,7 @@ public class SyncKV {
     }
 
     public SyncKVTable getTable(String name) {
-        return new SyncKVTable(name, store, seed, rpcFacade, channel);
+        return new SyncKVTable(name, store, random, rpcFacade, channel);
     }
 
     public static void ensureProtocol() {

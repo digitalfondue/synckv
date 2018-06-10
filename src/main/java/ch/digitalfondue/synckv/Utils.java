@@ -7,7 +7,7 @@ import org.jgroups.util.Util;
 
 import java.util.Base64;
 
-public class Utils {
+class Utils {
 
     static Address fromBase64(String encoded) {
         try {

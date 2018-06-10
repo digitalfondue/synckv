@@ -6,6 +6,7 @@ import org.jgroups.JChannel;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
@@ -13,15 +14,16 @@ import java.util.stream.Collectors;
 
 public class SyncKVTable {
 
-    private final long seed;
+    private final SecureRandom random;
     private final RpcFacade rpcFacade;
     private final JChannel channel;
     private final MVMap<byte[], byte[]> table;
 
+    //nanoTime and random.nextLong
     private static final int METADATA_LENGTH = 2 * Long.BYTES;
 
-    public SyncKVTable(String tableName, MVStore store, long seed, RpcFacade rpcFacade, JChannel channel) {
-        this.seed = seed;
+    public SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel) {
+        this.random = random;
         this.rpcFacade = rpcFacade;
         this.channel = channel;
         this.table = store.openMap(tableName);
@@ -40,7 +42,7 @@ public class SyncKVTable {
         return table.keySet()
                 .stream()
                 .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8)) //trim away the metadata
-                .collect(Collectors.toCollection(TreeSet::new)); //keep the order
+                .collect(Collectors.toCollection(TreeSet::new)); //keep the order and remove duplicate keys
     }
 
     synchronized boolean put(String key, byte[] value, boolean broadcast) {
@@ -52,7 +54,7 @@ public class SyncKVTable {
         bf.put(rawKey);
         //
         bf.putLong(time);
-        bf.putLong(seed);
+        bf.putLong(random.nextLong());
         //
 
         if (broadcast) {
