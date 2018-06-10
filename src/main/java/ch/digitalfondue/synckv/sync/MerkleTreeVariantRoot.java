@@ -10,18 +10,18 @@ import java.util.TreeSet;
  * See https://wiki.apache.org/cassandra/AntiEntropy .
  * <p>
  * Variation:
- * - number of childs and depth is configurable
+ * - number of children and depth is configurable
  * - the bucket selection is done using (hash % number of childs)
  * - the nodes are created lazily
  */
 public class MerkleTreeVariantRoot {
 
-    private final Node[] childs;
+    private final Node[] children;
     private int hash;
     private final int depth;
 
     public MerkleTreeVariantRoot(int depth, int breadth) {
-        this.childs = new Node[breadth];
+        this.children = new Node[breadth];
         this.depth = depth;
     }
 
@@ -29,24 +29,24 @@ public class MerkleTreeVariantRoot {
 
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
-        int bucket = hashWrappedValue % childs.length;
+        int bucket = hashWrappedValue % children.length;
 
-        if (childs[bucket] == null) {
-            childs[bucket] = new Node(depth - 1, childs.length, null);
+        if (children[bucket] == null) {
+            children[bucket] = new Node(depth - 1, children.length, null);
         }
 
-        childs[bucket].add(wrapped, hashWrappedValue - bucket);
+        children[bucket].add(wrapped, hashWrappedValue - bucket);
 
-        hash = computeHashFor(childs);
+        hash = computeHashFor(children);
     }
 
     public int getHash() {
         return hash;
     }
 
-    private static int computeHashFor(Node[] childs) {
-        ByteBuffer hashes = ByteBuffer.allocate(childs.length * Integer.BYTES);
-        for (Node c : childs) {
+    private static int computeHashFor(Node[] children) {
+        ByteBuffer hashes = ByteBuffer.allocate(children.length * Integer.BYTES);
+        for (Node c : children) {
             hashes.putInt(c != null ? c.hash : 0);
         }
         return MurmurHash.hash(hashes);
@@ -54,7 +54,7 @@ public class MerkleTreeVariantRoot {
 
 
     private static class Node {
-        private Node[] childs;
+        private Node[] children;
         private SortedSet<ByteBuffer> content;
         private int hash;
         private final int depth;
@@ -68,43 +68,47 @@ public class MerkleTreeVariantRoot {
         }
 
         void add(ByteBuffer wrapped, int resultingHash) {
-            //
             if (depth == 0) {
-
-                if (this.content == null) {
-                    this.content = new TreeSet<>();
-                }
-
-                content.add(wrapped);
-
-                //compute hash of content
-                ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
-                for (ByteBuffer bf : content) {
-                    hashes.putInt(MurmurHash.hash(bf));
-                }
-                hash = MurmurHash.hash(hashes);
-                if (parent != null) {
-                    parent.updateHash();
-                }
-                //
+                insertValue(wrapped);
             } else {
+                selectBucket(wrapped, resultingHash);
+            }
+        }
 
-                if (childs == null) {
-                    this.childs = new Node[breadth];
-                }
+        private void selectBucket(ByteBuffer wrapped, int resultingHash) {
+            if (children == null) {
+                this.children = new Node[breadth];
+            }
 
-                int bucket = resultingHash % childs.length;
-                // lazy node creation too
-                if (childs[bucket] == null) {
-                    childs[bucket] = new Node(depth - 1, breadth, this);
-                }
-                //
-                childs[bucket].add(wrapped, resultingHash - bucket);
+            int bucket = resultingHash % children.length;
+            // lazy node creation too
+            if (children[bucket] == null) {
+                children[bucket] = new Node(depth - 1, breadth, this);
+            }
+            //
+            children[bucket].add(wrapped, resultingHash - bucket);
+        }
+
+        private void insertValue(ByteBuffer wrapped) {
+            if (this.content == null) {
+                this.content = new TreeSet<>();
+            }
+
+            content.add(wrapped);
+
+            //compute hash of content
+            ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
+            for (ByteBuffer bf : content) {
+                hashes.putInt(MurmurHash.hash(bf));
+            }
+            hash = MurmurHash.hash(hashes);
+            if (parent != null) {
+                parent.updateHash();
             }
         }
 
         private void updateHash() {
-            hash = computeHashFor(childs);
+            hash = computeHashFor(children);
             if (parent != null) {
                 parent.updateHash();
             }
