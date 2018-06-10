@@ -37,7 +37,7 @@ public class MerkleTreeVariantRoot {
     }
 
 
-    static class Node {
+    private static class Node {
         private Node[] childs;
         private Set<ByteBuffer> content;
         private int hash;
@@ -46,7 +46,7 @@ public class MerkleTreeVariantRoot {
         private final ToIntFunction<ByteBuffer> hashFunction;
 
 
-        public Node(int depth, int breadth, ToIntFunction<ByteBuffer> hashFunction) {
+        Node(int depth, int breadth, ToIntFunction<ByteBuffer> hashFunction) {
             this.depth = depth;
             this.breadth = breadth;
             this.hashFunction = hashFunction;
