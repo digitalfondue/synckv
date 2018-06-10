@@ -1,5 +1,6 @@
 package ch.digitalfondue.synckv;
 
+import ch.digitalfondue.synckv.sync.MerkleTreeVariantRoot;
 import org.h2.mvstore.MVStore;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
@@ -16,6 +17,8 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class SyncKV {
@@ -28,6 +31,7 @@ public class SyncKV {
     private final JChannel channel;
     private final MVStore store;
     private final RpcFacade rpcFacade;
+    private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
 
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
@@ -47,6 +51,9 @@ public class SyncKV {
         this.random = new SecureRandom();
 
         this.store = builder.open();
+
+        ensureSyncMap();
+
 
         if (channel != null) {
             try {
@@ -68,13 +75,29 @@ public class SyncKV {
         this(fileName, password, buildChannel(password), "syncKV");
     }
 
-    public SyncKVTable getTable(String name) {
-        return new SyncKVTable(name, store, random, rpcFacade, channel);
+    public synchronized SyncKVTable getTable(String name) {
+        if(!syncMap.containsKey(name)) {
+            syncMap.put(name, buildTree());
+        }
+        return new SyncKVTable(name, store, random, rpcFacade, channel, syncMap.get(name));
     }
 
     public static void ensureProtocol() {
         if (ClassConfigurator.getProtocolId(SymEncryptWithKeyFromMemory.class) == 0) {
             ClassConfigurator.addProtocol((short) 1024, SymEncryptWithKeyFromMemory.class);
+        }
+    }
+
+    private static MerkleTreeVariantRoot buildTree() {
+        return new MerkleTreeVariantRoot(3, 7);
+    }
+
+    private void ensureSyncMap() {
+        for (String name : store.getMapNames()) {
+            MerkleTreeVariantRoot tree = buildTree();
+            syncMap.put(name, tree);
+            Map<byte[], byte[]> map = store.openMap(name);
+            map.keySet().stream().forEach(tree::add);
         }
     }
 

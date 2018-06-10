@@ -17,7 +17,7 @@ import java.util.TreeSet;
 public class MerkleTreeVariantRoot {
 
     private final Node[] children;
-    private int hash;
+    private volatile int hash;
     private final int depth;
 
     public MerkleTreeVariantRoot(int depth, int breadth) {
@@ -29,7 +29,7 @@ public class MerkleTreeVariantRoot {
 
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
-        int bucket = hashWrappedValue % children.length;
+        int bucket = Math.abs(hashWrappedValue % children.length);
 
         if (children[bucket] == null) {
             children[bucket] = new Node(depth - 1, children.length, null);
@@ -56,7 +56,7 @@ public class MerkleTreeVariantRoot {
     private static class Node {
         private Node[] children;
         private SortedSet<ByteBuffer> content;
-        private int hash;
+        private volatile int hash;
         private final int depth;
         private final int breadth;
         private Node parent;
@@ -80,7 +80,7 @@ public class MerkleTreeVariantRoot {
                 this.children = new Node[breadth];
             }
 
-            int bucket = resultingHash % children.length;
+            int bucket = Math.abs(resultingHash % children.length);
             // lazy node creation too
             if (children[bucket] == null) {
                 children[bucket] = new Node(depth - 1, breadth, this);

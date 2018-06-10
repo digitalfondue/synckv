@@ -1,5 +1,6 @@
 package ch.digitalfondue.synckv;
 
+import ch.digitalfondue.synckv.sync.MerkleTreeVariantRoot;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.jgroups.JChannel;
@@ -21,12 +22,14 @@ public class SyncKVTable {
 
     //nanoTime and random.nextLong
     private static final int METADATA_LENGTH = 2 * Long.BYTES;
+    private final MerkleTreeVariantRoot syncTree;
 
-    public SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel) {
+    public SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, MerkleTreeVariantRoot syncTree) {
         this.random = random;
         this.rpcFacade = rpcFacade;
         this.channel = channel;
         this.table = store.openMap(tableName);
+        this.syncTree = syncTree;
     }
 
 
@@ -62,6 +65,7 @@ public class SyncKVTable {
         }
 
         table.put(bf.array(), value);
+        syncTree.add(bf.array());
         return true;
     }
 
