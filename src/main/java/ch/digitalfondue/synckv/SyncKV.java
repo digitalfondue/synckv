@@ -14,10 +14,7 @@ import org.jgroups.protocols.pbcast.STATE_TRANSFER;
 import org.jgroups.stack.Protocol;
 
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -58,13 +55,14 @@ public class SyncKV {
         if (channel != null) {
             try {
                 channel.connect(channelName);
+                this.rpcFacade = new RpcFacade(this);
+                this.rpcFacade.setRpcDispatcher(new RpcDispatcher(channel, rpcFacade));
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }
+        } else {
+            rpcFacade = null;
         }
-
-        this.rpcFacade = new RpcFacade(this);
-        this.rpcFacade.setRpcDispatcher(new RpcDispatcher(channel, rpcFacade));
     }
 
     public SyncKV(String fileName, String password, String channelName) {
@@ -140,10 +138,10 @@ public class SyncKV {
 
 
     public String getClusterMemberName() {
-        return channel.getAddressAsString();
+        return channel != null ? channel.getAddressAsString() : null;
     }
 
     public List<String> getClusterMembersName() {
-        return channel.view().getMembers().stream().map(Address::toString).collect(Collectors.toList());
+        return channel != null ? channel.view().getMembers().stream().map(Address::toString).collect(Collectors.toList()) : Collections.emptyList();
     }
 }

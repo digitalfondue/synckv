@@ -60,7 +60,7 @@ public class SyncKVTable {
         bf.putLong(random.nextLong());
         //
 
-        if (broadcast) {
+        if (broadcast && rpcFacade != null) {
             rpcFacade.putRequest(channel.getAddress(), table.getName(), key, value);
         }
 
@@ -106,12 +106,11 @@ public class SyncKVTable {
         byte[] res = selectedKey != null ? table.get(selectedKey) : null;
 
         //
-        if (distributed && res == null) { //try to fetch the value in the cluster if it's not present locally
+        if (distributed && res == null && rpcFacade != null) { //try to fetch the value in the cluster if it's not present locally
             byte[][] remote = rpcFacade.getValue(channel.getAddress(), table.getName(), key);
 
             //add value if it's missing
             if (remote != null && remote[0] != null) {
-                System.err.println("ADDING VALUE FROM REMOTE ON GET");
                 addRawKV(remote[0], remote[1]);
             }
             //
