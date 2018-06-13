@@ -16,6 +16,8 @@ import org.jgroups.stack.Protocol;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class SyncKV {
@@ -30,6 +32,7 @@ public class SyncKV {
     private final RpcFacade rpcFacade;
     private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
     final Map<Address, TableAndPartialTreeData[]> syncPayloads = new ConcurrentHashMap<>();
+    private final ScheduledThreadPoolExecutor scheduledExecutor;
 
 
     /**
@@ -59,11 +62,18 @@ public class SyncKV {
                 channel.connect(channelName);
                 this.rpcFacade = new RpcFacade(this);
                 this.rpcFacade.setRpcDispatcher(new RpcDispatcher(channel, rpcFacade));
+
+
+                this.scheduledExecutor = new ScheduledThreadPoolExecutor(1);
+
+                this.scheduledExecutor.scheduleAtFixedRate(new SynchronizationHandler(this, rpcFacade), 0, 10, TimeUnit.SECONDS);
+
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }
         } else {
             rpcFacade = null;
+            this.scheduledExecutor = null;
         }
     }
 
@@ -147,6 +157,13 @@ public class SyncKV {
         return channel != null ? channel.view().getMembers().stream().map(Address::toString).collect(Collectors.toList()) : Collections.emptyList();
     }
 
+    public boolean isLeader() {
+        return channel != null ? channel.getView().getMembers().get(0).equals(channel.getAddress()) : true;
+    }
+
+    public Address getAddress() {
+        return channel.getAddress();
+    }
 
     TableAndPartialTreeData[] getTableMetadataForSync() {
         List<TableAndPartialTreeData> res = new ArrayList<>();
