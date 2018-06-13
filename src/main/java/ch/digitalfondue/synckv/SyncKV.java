@@ -13,6 +13,8 @@ import org.jgroups.protocols.pbcast.STABLE;
 import org.jgroups.protocols.pbcast.STATE_TRANSFER;
 import org.jgroups.stack.Protocol;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,7 +22,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public class SyncKV {
+public class SyncKV implements AutoCloseable, Closeable {
 
     static {
         ensureProtocol();
@@ -173,5 +175,12 @@ public class SyncKV {
         });
 
         return res.toArray(new TableAndPartialTreeData[res.size()]);
+    }
+
+    @Override
+    public void close() {
+        store.close();
+        channel.close();
+        scheduledExecutor.shutdown();
     }
 }
