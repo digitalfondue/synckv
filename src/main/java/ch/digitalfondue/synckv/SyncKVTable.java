@@ -1,6 +1,5 @@
 package ch.digitalfondue.synckv;
 
-import ch.digitalfondue.synckv.sync.MerkleTreeVariantRoot;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.jgroups.JChannel;

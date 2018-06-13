@@ -1,6 +1,5 @@
 package ch.digitalfondue.synckv;
 
-import ch.digitalfondue.synckv.sync.MerkleTreeVariantRoot;
 import org.h2.mvstore.MVStore;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
@@ -14,7 +13,6 @@ import org.jgroups.protocols.pbcast.STATE_TRANSFER;
 import org.jgroups.stack.Protocol;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -171,7 +169,7 @@ public class SyncKV implements AutoCloseable, Closeable {
         List<TableAndPartialTreeData> res = new ArrayList<>();
 
         syncMap.forEach((k,v) -> {
-            res.add(new TableAndPartialTreeData(k, v.getTopHashes()));
+            res.add(new TableAndPartialTreeData(k, v.getKeyCount(), v.getTopHashes()));
         });
 
         return res.toArray(new TableAndPartialTreeData[res.size()]);

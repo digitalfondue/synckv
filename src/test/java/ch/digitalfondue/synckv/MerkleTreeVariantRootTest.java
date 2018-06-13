@@ -1,5 +1,6 @@
-package ch.digitalfondue.synckv.sync;
+package ch.digitalfondue.synckv;
 
+import ch.digitalfondue.synckv.MerkleTreeVariantRoot;
 import org.junit.Assert;
 import org.junit.Test;
 

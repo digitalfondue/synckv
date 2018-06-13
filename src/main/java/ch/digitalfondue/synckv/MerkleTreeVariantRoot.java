@@ -1,8 +1,9 @@
-package ch.digitalfondue.synckv.sync;
+package ch.digitalfondue.synckv;
 
 import java.nio.ByteBuffer;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Inspired by https://bitcoin.stackexchange.com/questions/51423/how-do-you-create-a-merkle-tree-that-lets-you-insert-and-delete-elements-without/52811#52811 .
@@ -14,18 +15,19 @@ import java.util.TreeSet;
  * - the bucket selection is done using (hash % number of childs)
  * - the nodes are created lazily
  */
-public class MerkleTreeVariantRoot {
+class MerkleTreeVariantRoot {
 
     private final Node[] children;
     private volatile int hash;
     private final int depth;
+    private final AtomicInteger keyCount = new AtomicInteger();
 
-    public MerkleTreeVariantRoot(int depth, int breadth) {
+    MerkleTreeVariantRoot(int depth, int breadth) {
         this.children = new Node[breadth];
         this.depth = depth;
     }
 
-    public synchronized void add(byte[] value) {
+    synchronized void add(byte[] value) {
 
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
@@ -38,9 +40,10 @@ public class MerkleTreeVariantRoot {
         children[bucket].add(wrapped, hashWrappedValue - bucket);
 
         hash = computeHashFor(children);
+        keyCount.incrementAndGet();
     }
 
-    public int getHash() {
+    int getHash() {
         return hash;
     }
 
@@ -55,13 +58,17 @@ public class MerkleTreeVariantRoot {
     /**
      * Return the hash of the root node and the one from the children (only first level).
      * */
-    public synchronized int[] getTopHashes() {
+    synchronized int[] getTopHashes() {
         int [] res = new int[children.length + 1];
         res[0] = hash;
         for(int i = 0; i < children.length; i++) {
             res[i+1] = children[i] == null ? 0 : children[i].hash;
         }
         return res;
+    }
+
+    int getKeyCount() {
+        return keyCount.get();
     }
 
 
