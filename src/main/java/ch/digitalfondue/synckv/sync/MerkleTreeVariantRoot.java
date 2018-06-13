@@ -52,6 +52,18 @@ public class MerkleTreeVariantRoot {
         return MurmurHash.hash(hashes);
     }
 
+    /**
+     * Return the hash of the root node and the one from the children (only first level).
+     * */
+    public synchronized int[] getTopHashes() {
+        int [] res = new int[children.length + 1];
+        res[0] = hash;
+        for(int i = 0; i < children.length; i++) {
+            res[i+1] = children[i] == null ? 0 : children[i].hash;
+        }
+        return res;
+    }
+
 
     private static class Node {
         private Node[] children;

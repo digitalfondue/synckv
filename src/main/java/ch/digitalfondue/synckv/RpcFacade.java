@@ -18,8 +18,6 @@ public class RpcFacade {
 
     private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
 
-
-
     private final SyncKV syncKV;
     private RpcDispatcher rpcDispatcher;
 
@@ -94,6 +92,32 @@ public class RpcFacade {
         }
     }
 
+    // --- SYNC --------
+    // --- STEP 1 ------
+    void requestForSyncPayload(Address address) {
+        broadcastToEverybodyElse(new MethodCall("handleRequestForSyncPayload", new Object[]{Utils.addressToBase64(address)}, new Class[]{String.class}));
+    }
+
+    public void handleRequestForSyncPayload(String src) {
+
+        Address leader = Utils.fromBase64(src);
+
+        if (leader.equals(getCurrentAddress())) {
+            //calling himself, ignore
+            return;
+        }
+
+        syncPayloadForLeader(leader, getCurrentAddress(), syncKV.getTableMetadataForSync());
+    }
+
+    // --- STEP 2 ------
+    void syncPayloadForLeader(Address address, Address currentAddress, TableAndPartialTreeData[] tableMetadataForSync) {
+        send(address, new MethodCall("handleSyncPayloadForLeader", new Object[]{Utils.addressToBase64(currentAddress), tableMetadataForSync}, new Class[]{String.class, TableAndPartialTreeData[].class}));
+    }
+
+    public void handleSyncPayloadForLeader(String src, TableAndPartialTreeData[] payload) {
+        syncKV.syncPayloads.put(Utils.fromBase64(src), payload);
+    }
     // -----------------
 
     void broadcastToEverybodyElse(MethodCall call) {
@@ -116,4 +140,6 @@ public class RpcFacade {
             LOGGER.log(Level.WARNING, "Error while calling send", e);
         }
     }
+
+    // -----------------
 }

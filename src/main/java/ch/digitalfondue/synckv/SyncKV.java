@@ -29,6 +29,8 @@ public class SyncKV {
     private final MVStore store;
     private final RpcFacade rpcFacade;
     private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
+    final Map<Address, TableAndPartialTreeData[]> syncPayloads = new ConcurrentHashMap<>();
+
 
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
@@ -143,5 +145,16 @@ public class SyncKV {
 
     public List<String> getClusterMembersName() {
         return channel != null ? channel.view().getMembers().stream().map(Address::toString).collect(Collectors.toList()) : Collections.emptyList();
+    }
+
+
+    TableAndPartialTreeData[] getTableMetadataForSync() {
+        List<TableAndPartialTreeData> res = new ArrayList<>();
+
+        syncMap.forEach((k,v) -> {
+            res.add(new TableAndPartialTreeData(k, v.getTopHashes()));
+        });
+
+        return res.toArray(new TableAndPartialTreeData[res.size()]);
     }
 }
