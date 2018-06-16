@@ -32,7 +32,7 @@ class MerkleTreeVariantRoot {
 
     List<Export> exportStructureOnly() {
         List<Export> export = new ArrayList<>();
-        export.add(new ExportRoot(depth, (byte) children.length, hash));
+        export.add(new ExportRoot(depth, (byte) children.length, hash, keyCount.get()));
         for (Node n : children) {
             if (n != null) {
                 n.export(export);
@@ -55,16 +55,18 @@ class MerkleTreeVariantRoot {
 
         private final int hash;
         private final byte breadth;
+        private final int keyCount;
 
-        private ExportRoot(byte depth, byte breadth, int hash) {
+        private ExportRoot(byte depth, byte breadth, int hash, int keyCount) {
             super(depth);
             this.breadth = breadth;
             this.hash = hash;
+            this.keyCount = keyCount;
         }
 
         @Override
         public String toString() {
-            return String.format("ExportRoot{depth: %d, hash: %d, breadth: %d}", depth, hash, breadth);
+            return String.format("ExportRoot{depth: %d, hash: %d, breadth: %d, keyCount: %d}", depth, hash, breadth, keyCount);
         }
     }
 
@@ -79,6 +81,22 @@ class MerkleTreeVariantRoot {
         @Override
         public String toString() {
             return String.format("ExportNode{depth: %d, hash: %d}", depth, hash);
+        }
+    }
+
+    static class ExportLeaf extends Export {
+        private final int hash;
+        private final int keyCount;
+
+        private ExportLeaf(byte depth, int hash, int keyCount) {
+            super(depth);
+            this.hash = hash;
+            this.keyCount = keyCount;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ExportLeaf{depth: %d, hash: %d, keyCount: %d}", depth, hash, keyCount);
         }
     }
 
@@ -195,7 +213,11 @@ class MerkleTreeVariantRoot {
         }
 
         void export(List<Export> export) {
-            export.add(new ExportNode(depth, hash));
+            if (depth == 0) {
+                export.add(new ExportLeaf(depth, hash, content == null ? 0 : content.size()));
+            } else {
+                export.add(new ExportNode(depth, hash));
+            }
             if (children != null) {
                 for (int i = 0; i < children.length; i++) {
                     Node n = children[i];

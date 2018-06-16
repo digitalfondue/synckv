@@ -23,5 +23,7 @@ public class MerkleTreeVariantRootTest {
 
         //resulting hash must be equal, as the tree has the exact same shape
         Assert.assertEquals(r1.getHash(), r2.getHash());
+
+        //r1.exportStructureOnly().forEach(System.err::println);
     }
 }
