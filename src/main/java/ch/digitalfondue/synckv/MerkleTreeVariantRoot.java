@@ -1,6 +1,9 @@
 package ch.digitalfondue.synckv;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,12 +22,78 @@ class MerkleTreeVariantRoot {
 
     private final Node[] children;
     private volatile int hash;
-    private final int depth;
+    private final byte depth;
     private final AtomicInteger keyCount = new AtomicInteger();
 
-    MerkleTreeVariantRoot(int depth, int breadth) {
+    MerkleTreeVariantRoot(byte depth, byte breadth) {
         this.children = new Node[breadth];
         this.depth = depth;
+    }
+
+    List<Export> exportStructureOnly() {
+        List<Export> export = new ArrayList<>();
+        export.add(new ExportRoot(depth, (byte) children.length, hash));
+        for (Node n : children) {
+            if (n != null) {
+                n.export(export);
+            } else {
+                export.add(new ExportNoNode((byte) (depth - 1)));
+            }
+        }
+        return export;
+    }
+
+    static abstract class Export implements Serializable {
+        final byte depth;
+
+        private Export(byte depth) {
+            this.depth = depth;
+        }
+    }
+
+    static class ExportRoot extends Export {
+
+        private final int hash;
+        private final byte breadth;
+
+        private ExportRoot(byte depth, byte breadth, int hash) {
+            super(depth);
+            this.breadth = breadth;
+            this.hash = hash;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ExportRoot{depth: %d, hash: %d, breadth: %d}", depth, hash, breadth);
+        }
+    }
+
+    static class ExportNode extends Export {
+        private final int hash;
+
+        private ExportNode(byte depth, int hash) {
+            super(depth);
+            this.hash = hash;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ExportNode{depth: %d, hash: %d}", depth, hash);
+        }
+    }
+
+    static class ExportNoNode extends Export {
+
+        private int count = 1;
+
+        private ExportNoNode(byte depth) {
+            super(depth);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ExportNoNode{depth: %d, count: %d}", depth, count);
+        }
     }
 
     synchronized void add(byte[] value) {
@@ -34,7 +103,7 @@ class MerkleTreeVariantRoot {
         int bucket = Math.abs(hashWrappedValue % children.length);
 
         if (children[bucket] == null) {
-            children[bucket] = new Node(depth - 1, children.length, null);
+            children[bucket] = new Node((byte) (depth - 1), (byte) children.length, null);
         }
 
         children[bucket].add(wrapped, hashWrappedValue - bucket);
@@ -64,11 +133,11 @@ class MerkleTreeVariantRoot {
         private Node[] children;
         private SortedSet<ByteBuffer> content;
         private volatile int hash;
-        private final int depth;
-        private final int breadth;
+        private final byte depth;
+        private final byte breadth;
         private Node parent;
 
-        Node(int depth, int breadth, Node parent) {
+        Node(byte depth, byte breadth, Node parent) {
             this.depth = depth;
             this.breadth = breadth;
             this.parent = parent;
@@ -90,7 +159,7 @@ class MerkleTreeVariantRoot {
             int bucket = Math.abs(resultingHash % children.length);
             // lazy node creation too
             if (children[bucket] == null) {
-                children[bucket] = new Node(depth - 1, breadth, this);
+                children[bucket] = new Node((byte) (depth - 1), breadth, this);
             }
             //
             children[bucket].add(wrapped, resultingHash - bucket);
@@ -118,6 +187,29 @@ class MerkleTreeVariantRoot {
             hash = computeHashFor(children);
             if (parent != null) {
                 parent.updateHash();
+            }
+        }
+
+        private static Export getLast(List<Export> l) {
+            return l.size() > 0 ? l.get(l.size() - 1) : null;
+        }
+
+        void export(List<Export> export) {
+            export.add(new ExportNode(depth, hash));
+            if (children != null) {
+                for (int i = 0; i < children.length; i++) {
+                    Node n = children[i];
+                    if (n != null) {
+                        n.export(export);
+                    } else {
+                        Export e = getLast(export);
+                        if (i != 0 && e != null && e instanceof ExportNoNode && ((ExportNoNode) e).depth == (depth - 1)) {
+                            ((ExportNoNode) e).count++;
+                        } else {
+                            export.add(new ExportNoNode((byte) (depth - 1)));
+                        }
+                    }
+                }
             }
         }
     }

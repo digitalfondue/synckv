@@ -100,7 +100,7 @@ public class SyncKV implements AutoCloseable, Closeable {
 
     private static MerkleTreeVariantRoot buildTree() {
         //3**7 = 2187 buckets
-        return new MerkleTreeVariantRoot(3, 7);
+        return new MerkleTreeVariantRoot((byte) 3, (byte) 7);
     }
 
     private void ensureSyncMap() {
