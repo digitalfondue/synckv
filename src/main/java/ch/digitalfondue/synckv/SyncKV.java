@@ -72,7 +72,7 @@ public class SyncKV implements AutoCloseable, Closeable {
                 throw new IllegalStateException(e);
             }
         } else {
-            rpcFacade = null;
+            this.rpcFacade = null;
             this.scheduledExecutor = null;
         }
     }
@@ -161,7 +161,7 @@ public class SyncKV implements AutoCloseable, Closeable {
         return channel != null ? channel.getView().getMembers().get(0).equals(channel.getAddress()) : true;
     }
 
-    public Address getAddress() {
+    Address getAddress() {
         return channel.getAddress();
     }
 

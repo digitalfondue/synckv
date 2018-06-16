@@ -1,11 +1,12 @@
 package ch.digitalfondue.synckv;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 class TableAndPartialTreeData implements Serializable {
-    private final String name;
-    private final int keyCount;
-    private final int[] treeData;
+    final String name;
+    final int keyCount;
+    final int[] treeData;
 
     TableAndPartialTreeData(String name, int keyCount, int[] treeData) {
         this.name = name;
