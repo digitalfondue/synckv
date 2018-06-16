@@ -8,8 +8,7 @@ import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.util.RspList;
 
 import java.nio.ByteBuffer;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -120,6 +119,19 @@ public class RpcFacade {
     }
     // -----------------
 
+    // --- STEP 3 ------
+    public void syncPayloadFrom(Address address, List<TableAddress> remote) {
+        send(address, new MethodCall("handleSyncPayloadFrom", new Object[]{remote}, new Class[]{List.class}));
+    }
+
+    public void handleSyncPayloadFrom(List<TableAddress> remote) {
+        System.err.println("handleSyncPayloadFrom: " + remote);
+    }
+    // -----------------
+
+
+
+
     void broadcastToEverybodyElse(MethodCall call) {
         try {
             JChannel channel = syncKV.getChannel();
@@ -140,6 +152,5 @@ public class RpcFacade {
             LOGGER.log(Level.WARNING, "Error while calling send", e);
         }
     }
-
     // -----------------
 }
