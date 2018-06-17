@@ -25,7 +25,7 @@ class SynchronizationHandler implements Runnable {
     @Override
     public void run() {
         //TODO: additional condition: "currently in sync process"
-        if (syncKV.isLeader() && !running.get()) {
+        /*if (syncKV.isLeader() && !running.get()) {
             try {
                 running.set(true);
                 processRequestForSync();
@@ -35,10 +35,10 @@ class SynchronizationHandler implements Runnable {
             } finally {
                 running.set(false);
             }
-        }
+        }*/
     }
 
-    private static class AddressCollapsibleTableMetadata {
+    /*private static class AddressCollapsibleTableMetadata {
         private final Address address;
         private final int hash;
         private final int keyCount;
@@ -113,5 +113,5 @@ class SynchronizationHandler implements Runnable {
         tablesToSync.entrySet().stream().filter(kv -> !kv.getValue().isEmpty()).forEach(kv -> {
             this.rpcFacade.syncPayloadFrom(kv.getKey(), kv.getValue());
         });
-    }
+    }*/
 }

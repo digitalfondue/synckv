@@ -9,7 +9,6 @@ import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.util.RspList;
 
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.logging.Level;
@@ -96,7 +95,7 @@ public class RpcFacade {
 
     // --- SYNC --------
     // --- STEP 1 ------
-    void requestForSyncPayload(Address address) {
+    /*void requestForSyncPayload(Address address) {
         if (syncKV.isSyncInProgress()) {
             return;
         }
@@ -270,6 +269,7 @@ public class RpcFacade {
         }
     }
     // -----------------
+    */
 
     void broadcastToEverybodyElse(MethodCall call) {
         try {
