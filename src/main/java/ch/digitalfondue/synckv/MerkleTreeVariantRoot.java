@@ -71,16 +71,18 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     static class ExportNode extends Export {
         private final int hash;
         private final byte position;
+        private final String path;
 
-        private ExportNode(byte depth, int hash, byte position) {
+        private ExportNode(byte depth, int hash, byte position, String path) {
             super(depth);
             this.hash = hash;
             this.position = position;
+            this.path = path;
         }
 
         @Override
         public String toString() {
-            return String.format("ExportNode{depth: %d, hash: %d, position %d}", depth, hash, position);
+            return String.format("ExportNode{depth: %d, hash: %d, position: %d, path:%s}", depth, hash, position, path);
         }
     }
 
@@ -88,17 +90,19 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         private final int hash;
         private final byte position;
         private final int keyCount;
+        private final String path;
 
-        private ExportLeaf(byte depth, int hash, byte position, int keyCount) {
+        private ExportLeaf(byte depth, int hash, byte position, int keyCount, String path) {
             super(depth);
             this.hash = hash;
             this.position = position;
             this.keyCount = keyCount;
+            this.path = path;
         }
 
         @Override
         public String toString() {
-            return String.format("ExportLeaf{depth: %d, hash: %d, position: %d, keyCount: %d}", depth, hash, position, keyCount);
+            return String.format("ExportLeaf{depth: %d, hash: %d, position: %d, keyCount: %d, path:%s}", depth, hash, position, keyCount, path);
         }
     }
 
@@ -127,11 +131,19 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         return position(children, child);
     }
 
+    @Override
+    public void path(StringBuilder sb) {
+        sb.append("0");
+    }
+
     int getHash() {
         return hash;
     }
 
     private static byte position(Node[] children, NodeWithUpdateHashAndChildPosition node) {
+        if(children == null) {
+            return -1;
+        }
         for(byte i = 0; i < children.length; i++) {
             if(children[i] == node) {
                 return i;
@@ -220,15 +232,25 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             return MerkleTreeVariantRoot.position(children, child);
         }
 
+        @Override
+        public void path(StringBuilder sb) {
+            parent.path(sb);
+            sb.append("-").append(parent.position(this));
+        }
+
         private static Export getLast(List<Export> l) {
             return l.size() > 0 ? l.get(l.size() - 1) : null;
         }
 
         void export(List<Export> export) {
             if (depth == 0) {
-                export.add(new ExportLeaf(depth, hash, parent.position(this), content == null ? 0 : content.size()));
+                StringBuilder sb = new StringBuilder();
+                path(sb);
+                export.add(new ExportLeaf(depth, hash, parent.position(this), content == null ? 0 : content.size(), sb.toString()));
             } else {
-                export.add(new ExportNode(depth, hash, parent.position(this)));
+                StringBuilder sb = new StringBuilder();
+                path(sb);
+                export.add(new ExportNode(depth, hash, parent.position(this), sb.toString()));
             }
             if (children != null) {
                 for (int i = 0; i < children.length; i++) {
