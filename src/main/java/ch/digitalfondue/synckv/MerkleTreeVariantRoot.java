@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - the bucket selection is done using (hash % number of childs)
  * - the nodes are created lazily
  */
-class MerkleTreeVariantRoot {
+class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
     private final Node[] children;
     private volatile int hash;
@@ -36,8 +36,6 @@ class MerkleTreeVariantRoot {
         for (Node n : children) {
             if (n != null) {
                 n.export(export);
-            } else {
-                export.add(new ExportNoNode((byte) (depth - 1)));
             }
         }
         return export;
@@ -72,45 +70,35 @@ class MerkleTreeVariantRoot {
 
     static class ExportNode extends Export {
         private final int hash;
+        private final byte position;
 
-        private ExportNode(byte depth, int hash) {
+        private ExportNode(byte depth, int hash, byte position) {
             super(depth);
             this.hash = hash;
+            this.position = position;
         }
 
         @Override
         public String toString() {
-            return String.format("ExportNode{depth: %d, hash: %d}", depth, hash);
+            return String.format("ExportNode{depth: %d, hash: %d, position %d}", depth, hash, position);
         }
     }
 
     static class ExportLeaf extends Export {
         private final int hash;
+        private final byte position;
         private final int keyCount;
 
-        private ExportLeaf(byte depth, int hash, int keyCount) {
+        private ExportLeaf(byte depth, int hash, byte position, int keyCount) {
             super(depth);
             this.hash = hash;
+            this.position = position;
             this.keyCount = keyCount;
         }
 
         @Override
         public String toString() {
-            return String.format("ExportLeaf{depth: %d, hash: %d, keyCount: %d}", depth, hash, keyCount);
-        }
-    }
-
-    static class ExportNoNode extends Export {
-
-        private int count = 1;
-
-        private ExportNoNode(byte depth) {
-            super(depth);
-        }
-
-        @Override
-        public String toString() {
-            return String.format("ExportNoNode{depth: %d, count: %d}", depth, count);
+            return String.format("ExportLeaf{depth: %d, hash: %d, position: %d, keyCount: %d}", depth, hash, position, keyCount);
         }
     }
 
@@ -121,7 +109,7 @@ class MerkleTreeVariantRoot {
         int bucket = Math.abs(hashWrappedValue % children.length);
 
         if (children[bucket] == null) {
-            children[bucket] = new Node((byte) (depth - 1), (byte) children.length, null);
+            children[bucket] = new Node((byte) (depth - 1), (byte) children.length, this);
         }
 
         children[bucket].add(wrapped, hashWrappedValue - bucket);
@@ -130,8 +118,26 @@ class MerkleTreeVariantRoot {
         keyCount.incrementAndGet();
     }
 
+    @Override
+    public void updateHash() {
+    }
+
+    @Override
+    public byte position(NodeWithUpdateHashAndChildPosition child) {
+        return position(children, child);
+    }
+
     int getHash() {
         return hash;
+    }
+
+    private static byte position(Node[] children, NodeWithUpdateHashAndChildPosition node) {
+        for(byte i = 0; i < children.length; i++) {
+            if(children[i] == node) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static int computeHashFor(Node[] children) {
@@ -147,15 +153,15 @@ class MerkleTreeVariantRoot {
     }
 
 
-    private static class Node {
+    private static class Node implements NodeWithUpdateHashAndChildPosition {
         private Node[] children;
         private SortedSet<ByteBuffer> content;
         private volatile int hash;
         private final byte depth;
         private final byte breadth;
-        private Node parent;
+        private NodeWithUpdateHashAndChildPosition parent;
 
-        Node(byte depth, byte breadth, Node parent) {
+        Node(byte depth, byte breadth, NodeWithUpdateHashAndChildPosition parent) {
             this.depth = depth;
             this.breadth = breadth;
             this.parent = parent;
@@ -201,11 +207,17 @@ class MerkleTreeVariantRoot {
             }
         }
 
-        private void updateHash() {
+        @Override
+        public void updateHash() {
             hash = computeHashFor(children);
             if (parent != null) {
                 parent.updateHash();
             }
+        }
+
+        @Override
+        public byte position(NodeWithUpdateHashAndChildPosition child) {
+            return MerkleTreeVariantRoot.position(children, child);
         }
 
         private static Export getLast(List<Export> l) {
@@ -214,22 +226,15 @@ class MerkleTreeVariantRoot {
 
         void export(List<Export> export) {
             if (depth == 0) {
-                export.add(new ExportLeaf(depth, hash, content == null ? 0 : content.size()));
+                export.add(new ExportLeaf(depth, hash, parent.position(this), content == null ? 0 : content.size()));
             } else {
-                export.add(new ExportNode(depth, hash));
+                export.add(new ExportNode(depth, hash, parent.position(this)));
             }
             if (children != null) {
                 for (int i = 0; i < children.length; i++) {
                     Node n = children[i];
                     if (n != null) {
                         n.export(export);
-                    } else {
-                        Export e = getLast(export);
-                        if (i != 0 && e != null && e instanceof ExportNoNode && ((ExportNoNode) e).depth == (depth - 1)) {
-                            ((ExportNoNode) e).count++;
-                        } else {
-                            export.add(new ExportNoNode((byte) (depth - 1)));
-                        }
                     }
                 }
             }
