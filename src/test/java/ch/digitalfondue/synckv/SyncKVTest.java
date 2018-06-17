@@ -25,6 +25,8 @@ public class SyncKVTest {
             table.put(key, ("hello world " + i).getBytes(StandardCharsets.UTF_8));
         }
 
+        kv.getTable("anothertable").put("test", "value".getBytes(StandardCharsets.UTF_8));
+
 
         SyncKV k2 = new SyncKV(null, "SyncKV");
         SyncKV k3 = new SyncKV(null, "SyncKV");
@@ -33,9 +35,18 @@ public class SyncKVTest {
             new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
 
                 System.err.println("members of the cluster: " + kv.getClusterMembersName());
-                System.err.println("keys in kv " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("attendees").keySet()));
-                System.err.println("keys in k2 " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("attendees").keySet()));
-                System.err.println("keys in k3 " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("attendees").keySet()));
+                System.err.println("keys in kv[attendees] " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("attendees").rawKeySet()));
+                System.err.println("keys in k2[attendees] " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("attendees").rawKeySet()));
+                System.err.println("keys in k3[attendees] " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("attendees").rawKeySet()));
+
+                System.err.println("keys in kv[anothertable] " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("anothertable").rawKeySet()));
+                if (k2.hasTable("anothertable")) {
+                    System.err.println("keys in k2[anothertable] " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("anothertable").rawKeySet()));
+                }
+                if (k3.hasTable("anothertable")) {
+                    System.err.println("keys in k3[anothertable] " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("anothertable").rawKeySet()));
+                }
+
 
                 String key = Integer.toString(keyGenerator.incrementAndGet());
                 String value = "hello world " + keyGenerator.get();

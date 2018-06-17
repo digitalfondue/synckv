@@ -31,15 +31,6 @@ public class SyncKVTable {
         this.syncTree = syncTree;
     }
 
-
-    // the key are structured as:
-    // + is = concatenation
-    //
-    // key.bytes+nanoTime+seed
-    public boolean put(String key, byte[] value) {
-        return put(key, value, true);
-    }
-
     public Set<String> keySet() {
         return table.keySet()
                 .stream()
@@ -47,7 +38,18 @@ public class SyncKVTable {
                 .collect(Collectors.toCollection(TreeSet::new)); //keep the order and remove duplicate keys
     }
 
-    synchronized boolean put(String key, byte[] value, boolean broadcast) {
+    Set<String> rawKeySet() {
+        return table.keySet().stream()
+                .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8) +
+                        "_" + s[s.length - 4] + "_" + s[s.length - 3] + "_" + s[s.length - 2] + "_" + s[s.length - 1])
+                .collect(Collectors.toSet());
+    }
+
+    // the key are structured as:
+    // + is = concatenation
+    //
+    // key.bytes+nanoTime+seed
+    public synchronized boolean put(String key, byte[] value) {
         long time = System.nanoTime();
 
         byte[] rawKey = key.getBytes(StandardCharsets.UTF_8);
@@ -59,16 +61,18 @@ public class SyncKVTable {
         bf.putLong(random.nextLong());
         //
 
-        if (broadcast && rpcFacade != null) {
-            rpcFacade.putRequest(channel.getAddress(), table.getName(), key, value);
+        byte[] finalKey = bf.array();
+
+        if (rpcFacade != null) {
+            rpcFacade.putRequest(channel.getAddress(), table.getName(), finalKey, value);
         }
 
-        addRawKV(bf.array(), value);
+        addRawKV(finalKey, value);
 
         return true;
     }
 
-    private synchronized void addRawKV(byte[] key, byte[] value) {
+    synchronized void addRawKV(byte[] key, byte[] value) {
         table.put(key, value);
         syncTree.add(key);
     }
@@ -117,5 +121,9 @@ public class SyncKVTable {
         } else {
             return new byte[][]{selectedKey, res};
         }
+    }
+
+    public byte[] getRawKV(byte[] k) {
+        return table.get(k);
     }
 }

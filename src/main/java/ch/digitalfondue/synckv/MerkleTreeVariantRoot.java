@@ -3,11 +3,9 @@ package ch.digitalfondue.synckv;
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * Inspired by https://bitcoin.stackexchange.com/questions/51423/how-do-you-create-a-merkle-tree-that-lets-you-insert-and-delete-elements-without/52811#52811 .
@@ -40,6 +38,18 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             }
         }
         return export;
+    }
+
+    ExportLeaf[] exportLeafStructureOnly() {
+        return exportStructureOnly().stream().filter(e -> e instanceof ExportLeaf).map(ExportLeaf.class::cast).toArray(s -> new ExportLeaf[s]);
+    }
+
+    SortedSet<ByteBuffer> getKeysForPath(byte[] path) {
+        Node node = children[path[0]];
+        for (int i = 1; i < path.length; i++) {
+            node = node.children[path[i]];
+        }
+        return node.content;
     }
 
     static abstract class Export implements Serializable {
@@ -91,8 +101,26 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
         @Override
         public String toString() {
-
             return String.format("ExportLeaf{hash: %d, keyCount: %d, path:%s}", hash, keyCount, format(path));
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null || !(obj instanceof ExportLeaf)) {
+                return false;
+            }
+
+            ExportLeaf other = (ExportLeaf) obj;
+            return hash == other.hash && keyCount == other.keyCount && Arrays.equals(path, other.path);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(new int[]{Integer.hashCode(hash), Integer.hashCode(keyCount), Arrays.hashCode(path)});
+        }
+
+        byte[] getPath() {
+            return path;
         }
     }
 
@@ -115,10 +143,12 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             children[bucket] = new Node((byte) (depth - 1), (byte) children.length, this);
         }
 
-        children[bucket].add(wrapped, hashWrappedValue - bucket);
+        boolean res = children[bucket].add(wrapped, hashWrappedValue - bucket);
 
-        hash = computeHashFor(children);
-        keyCount.incrementAndGet();
+        if (res) {
+            hash = computeHashFor(children);
+            keyCount.incrementAndGet();
+        }
     }
 
     @Override
@@ -177,15 +207,15 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             this.parent = parent;
         }
 
-        void add(ByteBuffer wrapped, int resultingHash) {
+        boolean add(ByteBuffer wrapped, int resultingHash) {
             if (depth == 0) {
-                insertValue(wrapped);
+                return insertValue(wrapped);
             } else {
-                selectBucket(wrapped, resultingHash);
+                return selectBucket(wrapped, resultingHash);
             }
         }
 
-        private void selectBucket(ByteBuffer wrapped, int resultingHash) {
+        private boolean selectBucket(ByteBuffer wrapped, int resultingHash) {
             if (children == null) {
                 this.children = new Node[breadth];
             }
@@ -196,25 +226,28 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
                 children[bucket] = new Node((byte) (depth - 1), breadth, this);
             }
             //
-            children[bucket].add(wrapped, resultingHash - bucket);
+            return children[bucket].add(wrapped, resultingHash - bucket);
         }
 
-        private void insertValue(ByteBuffer wrapped) {
+        private boolean insertValue(ByteBuffer wrapped) {
             if (this.content == null) {
                 this.content = new TreeSet<>();
             }
 
-            content.add(wrapped);
+            boolean res = content.add(wrapped);
 
-            //compute hash of content
-            ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
-            for (ByteBuffer bf : content) {
-                hashes.putInt(MurmurHash.hash(bf));
+            if (res) {
+                //compute hash of content
+                ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
+                for (ByteBuffer bf : content) {
+                    hashes.putInt(MurmurHash.hash(bf));
+                }
+                hash = MurmurHash.hash(hashes);
+                if (parent != null) {
+                    parent.updateHash();
+                }
             }
-            hash = MurmurHash.hash(hashes);
-            if (parent != null) {
-                parent.updateHash();
-            }
+            return res;
         }
 
         @Override

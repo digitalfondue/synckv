@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class SyncKV implements AutoCloseable, Closeable {
@@ -33,6 +34,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
     final Map<Address, TableAndPartialTreeData[]> syncPayloads = new ConcurrentHashMap<>();
     private final ScheduledThreadPoolExecutor scheduledExecutor;
+    private AtomicBoolean isSyncInProgress = new AtomicBoolean(false);
 
 
     /**
@@ -77,12 +79,28 @@ public class SyncKV implements AutoCloseable, Closeable {
         }
     }
 
+    void syncInProgress() {
+        this.isSyncInProgress.set(true);
+    }
+
+    void syncInProgressDone() {
+        this.isSyncInProgress.set(false);
+    }
+
+    boolean isSyncInProgress() {
+        return isSyncInProgress.get();
+    }
+
     public SyncKV(String fileName, String password, String channelName) {
         this(fileName, password, buildChannel(password), channelName);
     }
 
     public SyncKV(String fileName, String password) {
         this(fileName, password, buildChannel(password), "syncKV");
+    }
+
+    public boolean hasTable(String name) {
+        return store.hasMap(name);
     }
 
     public synchronized SyncKVTable getTable(String name) {
@@ -181,5 +199,9 @@ public class SyncKV implements AutoCloseable, Closeable {
         store.close();
         channel.close();
         scheduledExecutor.shutdown();
+    }
+
+    MerkleTreeVariantRoot getTableTree(String table) {
+        return syncMap.get(table);
     }
 }

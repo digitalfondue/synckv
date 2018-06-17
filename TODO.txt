@@ -12,3 +12,5 @@
         -> add an update hash function for updating the whole tree -> useful for bulk insert
 
 - clock skew detection
+
+- true p2p sync? Currently it's coordinated by the leader, but in theory, everybody could simply select another node to check if there is a need to sync
