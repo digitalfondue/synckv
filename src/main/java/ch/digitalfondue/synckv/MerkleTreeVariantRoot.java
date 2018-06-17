@@ -32,7 +32,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
     List<Export> exportStructureOnly() {
         List<Export> export = new ArrayList<>();
-        export.add(new ExportRoot(depth, (byte) children.length, hash, keyCount.get()));
+        export.add(new ExportRoot((byte) children.length, hash, keyCount.get()));
         for (Node n : children) {
             if (n != null) {
                 n.export(export);
@@ -42,11 +42,6 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     }
 
     static abstract class Export implements Serializable {
-        final byte depth;
-
-        private Export(byte depth) {
-            this.depth = depth;
-        }
     }
 
     static class ExportRoot extends Export {
@@ -55,8 +50,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         private final byte breadth;
         private final int keyCount;
 
-        private ExportRoot(byte depth, byte breadth, int hash, int keyCount) {
-            super(depth);
+        private ExportRoot(byte breadth, int hash, int keyCount) {
             this.breadth = breadth;
             this.hash = hash;
             this.keyCount = keyCount;
@@ -64,45 +58,39 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
         @Override
         public String toString() {
-            return String.format("ExportRoot{depth: %d, hash: %d, breadth: %d, keyCount: %d}", depth, hash, breadth, keyCount);
+            return String.format("ExportRoot{hash: %d, breadth: %d, keyCount: %d}", hash, breadth, keyCount);
         }
     }
 
     static class ExportNode extends Export {
         private final int hash;
-        private final byte position;
         private final String path;
 
-        private ExportNode(byte depth, int hash, byte position, String path) {
-            super(depth);
+        private ExportNode(int hash, String path) {
             this.hash = hash;
-            this.position = position;
             this.path = path;
         }
 
         @Override
         public String toString() {
-            return String.format("ExportNode{depth: %d, hash: %d, position: %d, path:%s}", depth, hash, position, path);
+            return String.format("ExportNode{hash: %d, path:%s}", hash, path);
         }
     }
 
     static class ExportLeaf extends Export {
         private final int hash;
-        private final byte position;
         private final int keyCount;
         private final String path;
 
-        private ExportLeaf(byte depth, int hash, byte position, int keyCount, String path) {
-            super(depth);
+        private ExportLeaf(int hash, int keyCount, String path) {
             this.hash = hash;
-            this.position = position;
             this.keyCount = keyCount;
             this.path = path;
         }
 
         @Override
         public String toString() {
-            return String.format("ExportLeaf{depth: %d, hash: %d, position: %d, keyCount: %d, path:%s}", depth, hash, position, keyCount, path);
+            return String.format("ExportLeaf{hash: %d, keyCount: %d, path:%s}", hash, keyCount, path);
         }
     }
 
@@ -243,14 +231,12 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         }
 
         void export(List<Export> export) {
+            StringBuilder sb = new StringBuilder();
+            path(sb);
             if (depth == 0) {
-                StringBuilder sb = new StringBuilder();
-                path(sb);
-                export.add(new ExportLeaf(depth, hash, parent.position(this), content == null ? 0 : content.size(), sb.toString()));
+                export.add(new ExportLeaf(hash, content == null ? 0 : content.size(), sb.toString()));
             } else {
-                StringBuilder sb = new StringBuilder();
-                path(sb);
-                export.add(new ExportNode(depth, hash, parent.position(this), sb.toString()));
+                export.add(new ExportNode(hash, sb.toString()));
             }
             if (children != null) {
                 for (int i = 0; i < children.length; i++) {
