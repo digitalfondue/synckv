@@ -8,7 +8,8 @@ import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.util.RspList;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -72,7 +73,7 @@ public class RpcFacade {
             //fetch the value with the "biggest" metadata concatenate(insertion_time,seed)
             res = rsps.getResults()
                     .stream()
-                    .filter(payload-> payload != null && payload[0] != null)
+                    .filter(payload -> payload != null && payload[0] != null)
                     .sorted(DESC_METADATA_ORDER)
                     .findFirst()
                     .orElse(null);
@@ -128,8 +129,6 @@ public class RpcFacade {
         System.err.println("handleSyncPayloadFrom: " + remote);
     }
     // -----------------
-
-
 
 
     void broadcastToEverybodyElse(MethodCall call) {

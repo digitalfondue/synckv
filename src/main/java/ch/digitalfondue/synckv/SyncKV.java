@@ -86,7 +86,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     }
 
     public synchronized SyncKVTable getTable(String name) {
-        if(!syncMap.containsKey(name)) {
+        if (!syncMap.containsKey(name)) {
             syncMap.put(name, buildTree());
         }
         return new SyncKVTable(name, store, random, rpcFacade, channel, syncMap.get(name));
@@ -169,7 +169,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     TableAndPartialTreeData[] getTableMetadataForSync() {
         List<TableAndPartialTreeData> res = new ArrayList<>();
 
-        syncMap.forEach((k,v) -> {
+        syncMap.forEach((k, v) -> {
             res.add(new TableAndPartialTreeData(k, v.getKeyCount(), v.getHash()));
         });
 

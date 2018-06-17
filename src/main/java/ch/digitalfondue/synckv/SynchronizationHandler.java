@@ -30,7 +30,7 @@ class SynchronizationHandler implements Runnable {
                 running.set(true);
                 processRequestForSync();
                 rpcFacade.requestForSyncPayload(syncKV.getAddress());
-            } catch(Throwable t) {
+            } catch (Throwable t) {
                 LOGGER.log(Level.WARNING, "Error while processing the synchronization process", t);
             } finally {
                 running.set(false);
@@ -56,7 +56,7 @@ class SynchronizationHandler implements Runnable {
 
         @Override
         public boolean equals(Object obj) {
-            if(obj == null || ! (obj instanceof AddressCollapsibleTableMetadata)) {
+            if (obj == null || !(obj instanceof AddressCollapsibleTableMetadata)) {
                 return false;
             }
             AddressCollapsibleTableMetadata other = (AddressCollapsibleTableMetadata) obj;

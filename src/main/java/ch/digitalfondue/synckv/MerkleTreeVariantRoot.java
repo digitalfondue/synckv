@@ -1,5 +1,6 @@
 package ch.digitalfondue.synckv;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -64,34 +65,44 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
     static class ExportNode extends Export {
         private final int hash;
-        private final String path;
+        private final byte[] path;
 
-        private ExportNode(int hash, String path) {
+        private ExportNode(int hash, ByteArrayOutputStream baos) {
             this.hash = hash;
-            this.path = path;
+            this.path = baos.toByteArray();
         }
 
         @Override
         public String toString() {
-            return String.format("ExportNode{hash: %d, path:%s}", hash, path);
+            return String.format("ExportNode{hash: %d, path:%s}", hash, format(path));
         }
     }
 
     static class ExportLeaf extends Export {
         private final int hash;
         private final int keyCount;
-        private final String path;
+        private final byte[] path;
 
-        private ExportLeaf(int hash, int keyCount, String path) {
+        private ExportLeaf(int hash, int keyCount, ByteArrayOutputStream baos) {
             this.hash = hash;
             this.keyCount = keyCount;
-            this.path = path;
+            this.path = baos.toByteArray();
         }
 
         @Override
         public String toString() {
-            return String.format("ExportLeaf{hash: %d, keyCount: %d, path:%s}", hash, keyCount, path);
+
+            return String.format("ExportLeaf{hash: %d, keyCount: %d, path:%s}", hash, keyCount, format(path));
         }
+    }
+
+    private static String format(byte[] ar) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : ar) {
+            sb.append(b).append(", ");
+        }
+        sb.delete(sb.length() - 2, sb.length());
+        return sb.toString();
     }
 
     synchronized void add(byte[] value) {
@@ -120,8 +131,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     }
 
     @Override
-    public void path(StringBuilder sb) {
-        sb.append("0");
+    public void path(ByteArrayOutputStream sb) {
     }
 
     int getHash() {
@@ -129,11 +139,11 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     }
 
     private static byte position(Node[] children, NodeWithUpdateHashAndChildPosition node) {
-        if(children == null) {
+        if (children == null) {
             return -1;
         }
-        for(byte i = 0; i < children.length; i++) {
-            if(children[i] == node) {
+        for (byte i = 0; i < children.length; i++) {
+            if (children[i] == node) {
                 return i;
             }
         }
@@ -221,9 +231,9 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         }
 
         @Override
-        public void path(StringBuilder sb) {
+        public void path(ByteArrayOutputStream sb) {
             parent.path(sb);
-            sb.append("-").append(parent.position(this));
+            sb.write(parent.position(this));
         }
 
         private static Export getLast(List<Export> l) {
@@ -231,12 +241,12 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         }
 
         void export(List<Export> export) {
-            StringBuilder sb = new StringBuilder();
+            ByteArrayOutputStream sb = new ByteArrayOutputStream();
             path(sb);
             if (depth == 0) {
-                export.add(new ExportLeaf(hash, content == null ? 0 : content.size(), sb.toString()));
+                export.add(new ExportLeaf(hash, content == null ? 0 : content.size(), sb));
             } else {
-                export.add(new ExportNode(hash, sb.toString()));
+                export.add(new ExportNode(hash, sb));
             }
             if (children != null) {
                 for (int i = 0; i < children.length; i++) {
