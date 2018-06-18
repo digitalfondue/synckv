@@ -68,11 +68,17 @@ class SynchronizationHandler implements Runnable {
     }
 
     private void syncTable(Address remote, String tableName, boolean fullSync) {
-        System.err.println(syncKV.getClusterMemberName() + " syncTable with " + remote + " for table " + tableName + " full sync: " + fullSync);
-        if (fullSync) {
-            //full sync code here
-        } else {
-            //partial sync here
+        try {
+            System.err.println(syncKV.getClusterMemberName() + " syncTable with " + remote + " for table " + tableName + " full sync: " + fullSync);
+            if (fullSync) {
+                //full sync code here
+                List<byte[][]> tablePayload = rpcFacade.getFullTableData(remote, tableName).get();
+                syncKV.getTable(tableName).importRawData(tablePayload);
+            } else {
+                //partial sync here
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "Error while calling syncTable", e);
         }
     }
 }

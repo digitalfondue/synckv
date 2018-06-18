@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -127,5 +128,15 @@ public class SyncKVTable {
 
     public byte[] getRawKV(byte[] k) {
         return table.get(k);
+    }
+
+    public List<byte[][]> exportRawData() {
+        return table.keySet().stream().map(key -> new byte[][]{key, table.get(key)}).collect(Collectors.toList());
+    }
+
+    public void importRawData(List<byte[][]> tablePayload) {
+        for(byte[][] kv : tablePayload) {
+            addRawKV(kv[0], kv[1]);
+        }
     }
 }

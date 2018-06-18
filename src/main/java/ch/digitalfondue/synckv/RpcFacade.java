@@ -93,24 +93,27 @@ public class RpcFacade {
     }
 
     // --- STEP 1 ------
-    public CompletableFuture<Map<String, TableAndPartialTreeData>> getTableMetadataForSync(Address address) {
-        try {
-            return rpcDispatcher.callRemoteMethodWithFuture(address, new MethodCall("handleGetTableMetadataForSync", new Object[]{}, new Class[]{}), RequestOptions.SYNC());
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Error while calling handleGetTableMetadataForSync", e);
-            return null;
-        }
+    CompletableFuture<Map<String, TableAndPartialTreeData>> getTableMetadataForSync(Address address) {
+        return syncSend(address, new MethodCall("handleGetTableMetadataForSync", new Object[]{}, new Class[]{}));
     }
 
     public Map<String, TableAndPartialTreeData> handleGetTableMetadataForSync() {
         return syncKV.getTableMetadataForSync();
     }
+
     // -----------------
-    // --- STEP 2 ------
+
+    CompletableFuture<List<byte[][]>> getFullTableData(Address address, String tableName) {
+        return syncSend(address, new MethodCall("handleGetFullTableData", new Object[]{tableName}, new Class[]{String.class}));
+    }
+
+    public List<byte[][]> handleGetFullTableData(String tableName) {
+        return syncKV.getTable(tableName).exportRawData();
+    }
     // -----------------
 
 
-    void broadcastToEverybodyElse(MethodCall call) {
+    private void broadcastToEverybodyElse(MethodCall call) {
         try {
             JChannel channel = syncKV.getChannel();
             List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
@@ -123,11 +126,20 @@ public class RpcFacade {
         }
     }
 
-    void send(Address address, MethodCall call) {
+    private void send(Address address, MethodCall call) {
         try {
             rpcDispatcher.callRemoteMethod(address, call, RequestOptions.ASYNC());
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Error while calling send", e);
+        }
+    }
+
+    private <T> CompletableFuture<T> syncSend(Address address, MethodCall call) {
+        try {
+            return rpcDispatcher.callRemoteMethodWithFuture(address, call, RequestOptions.SYNC());
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error while calling handleGetTableMetadataForSync", e);
+            return null;
         }
     }
 
