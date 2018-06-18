@@ -7,11 +7,9 @@ import org.jgroups.JChannel;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SyncKVTable {
@@ -138,8 +136,12 @@ public class SyncKVTable {
     }
 
     void importRawData(List<byte[][]> tablePayload) {
-        for(byte[][] kv : tablePayload) {
+        for (byte[][] kv : tablePayload) {
             addRawKV(kv[0], kv[1]);
         }
+    }
+
+    public <T> SyncKVStructuredTable<T> toStructured(Class<T> clazz, SyncKVStructuredTable.DataConverterFrom<T> from, SyncKVStructuredTable.DataConverterTo<T> to) {
+        return new SyncKVStructuredTable<>(this, from, to);
     }
 }

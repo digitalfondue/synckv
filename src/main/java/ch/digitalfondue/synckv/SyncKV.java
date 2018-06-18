@@ -186,8 +186,13 @@ public class SyncKV implements AutoCloseable, Closeable {
     @Override
     public void close() {
         store.close();
-        channel.close();
-        scheduledExecutor.shutdown();
+        if (channel != null) {
+            channel.close();
+        }
+        if (scheduledExecutor != null) {
+            scheduledExecutor.shutdown();
+        }
+
     }
 
     MerkleTreeVariantRoot getTableTree(String table) {

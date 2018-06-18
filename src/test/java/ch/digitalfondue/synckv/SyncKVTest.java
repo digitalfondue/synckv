@@ -6,10 +6,16 @@ import java.util.Random;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class SyncKVTest {
 
     public static void main(String[] args) {
+
+        Logger rootLog = Logger.getLogger("");
+        rootLog.setLevel( Level.FINE );
+        rootLog.getHandlers()[0].setLevel( Level.FINE );
 
         SyncKV kv = new SyncKV(null, "SyncKV");
         kv.disableSync.set(true);

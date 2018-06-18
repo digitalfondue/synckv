@@ -45,7 +45,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         for (int i = 1; i < path.length; i++) {
             node = node.children[path[i]];
         }
-        return node.content;
+        return new TreeSet<>(node.content);
     }
 
     static class ExportLeaf implements Serializable {
@@ -189,7 +189,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             return children[bucket].add(wrapped, resultingHash - bucket);
         }
 
-        private boolean insertValue(ByteBuffer wrapped) {
+        private synchronized boolean insertValue(ByteBuffer wrapped) {
             if (this.content == null) {
                 this.content = new TreeSet<>();
             }

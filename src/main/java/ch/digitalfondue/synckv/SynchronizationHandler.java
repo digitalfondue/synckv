@@ -25,7 +25,7 @@ class SynchronizationHandler implements Runnable {
     @Override
     public void run() {
 
-        if(syncKV.disableSync.get()) {
+        if (syncKV.disableSync.get()) {
             return;
         }
 
@@ -59,7 +59,7 @@ class SynchronizationHandler implements Runnable {
                     if (remoteMetadata.hash != localMetadata.hash || remoteMetadata.keyCount != localMetadata.keyCount) {
                         syncTable(address, tableName, false);
                     } else {
-                        System.err.println("No need to sync!");
+                        LOGGER.fine(() -> String.format("No need to sync")); //TODO better logger msg
                     }
                 } else {
                     syncTable(address, tableName, true);
@@ -72,7 +72,7 @@ class SynchronizationHandler implements Runnable {
 
     private void syncTable(Address remote, String tableName, boolean fullSync) {
         try {
-            System.err.println("need to sync!");
+            LOGGER.fine(() -> String.format("need to sync")); //TODO better logger msg
             if (fullSync) {
                 //full sync code here
                 List<byte[][]> tablePayload = rpcFacade.getFullTableData(remote, tableName).join();
