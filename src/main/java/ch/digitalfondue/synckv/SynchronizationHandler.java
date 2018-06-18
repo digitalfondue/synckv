@@ -46,10 +46,15 @@ class SynchronizationHandler implements Runnable {
         }
     }
 
+    /**
+     * Synchronization is done in only one direction. The local instance will fetch the missing data against the one
+     * randomly selected.
+     *
+     * @param address
+     */
     private void synchronizeDB(Address address) {
         try {
             Map<String, TableStats> remote = rpcFacade.getTableMetadataForSync(address).join();
-
             Map<String, TableStats> local = syncKV.getTableMetadataForSync();
 
             remote.forEach((tableName, remoteMetadata) -> {
