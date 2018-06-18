@@ -39,6 +39,14 @@ public class SyncKVTable {
                 .collect(Collectors.toCollection(TreeSet::new)); //keep the order and remove duplicate keys
     }
 
+    public int count() {
+        return keySet().size();
+    }
+    
+    public Iterator<String> keys() {
+        return keySet().iterator();
+    }
+
     Set<String> rawKeySet() {
         return table.keySet().stream()
                 .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8) +
@@ -71,6 +79,15 @@ public class SyncKVTable {
         addRawKV(finalKey, value);
 
         return true;
+    }
+
+    public boolean put(String key, String value) {
+        return put(key, value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String getAsString(String key) {
+        byte[] res = get(key);
+        return res == null ? null : new String(res, StandardCharsets.UTF_8);
     }
 
     synchronized void addRawKV(byte[] key, byte[] value) {

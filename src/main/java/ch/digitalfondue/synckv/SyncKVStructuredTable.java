@@ -3,6 +3,7 @@ package ch.digitalfondue.synckv;
 import org.h2.mvstore.DataUtils;
 
 import java.io.*;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -28,6 +29,14 @@ public class SyncKVStructuredTable<T> {
 
     public Set<String> keySet() {
         return table.keySet();
+    }
+
+    public Iterator<String> keys() {
+        return table.keys();
+    }
+
+    public int count() {
+        return table.count();
     }
 
     public Stream<Map.Entry<String, T>> stream() {

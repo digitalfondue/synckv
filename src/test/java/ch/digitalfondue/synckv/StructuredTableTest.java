@@ -36,8 +36,16 @@ public class StructuredTableTest {
 
             SyncKVStructuredTable<Attendee> attendeeTable = kv.getTable("attendee").toStructured(Attendee.class, StructuredTableTest::from, StructuredTableTest::to);
 
+            Assert.assertEquals(0, attendeeTable.count());
+
             attendeeTable.put("test1", new Attendee("1f", "1l", "1@"));
+            Assert.assertEquals(1, attendeeTable.count());
+
             attendeeTable.put("test2", new Attendee("2f", "2l", "2@"));
+            Assert.assertEquals(2, attendeeTable.count());
+
+            attendeeTable.put("test2", new Attendee("2ff", "2ll", "2@@"));
+            Assert.assertEquals(2, attendeeTable.count());
 
 
             Attendee a = attendeeTable.stream().filter(e -> e.getValue().lastname.equals("1l")).map(Map.Entry::getValue).findFirst().orElseThrow(IllegalStateException::new);
