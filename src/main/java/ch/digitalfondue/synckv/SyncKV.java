@@ -178,7 +178,7 @@ public class SyncKV implements AutoCloseable, Closeable {
         Map<String, TableAndPartialTreeData> res = new HashMap<>();
 
         syncMap.forEach((k, v) -> {
-            res.put(k, new TableAndPartialTreeData(k, v.getKeyCount(), v.getHash()));
+            res.put(k, new TableAndPartialTreeData(v.getKeyCount(), v.getHash()));
         });
         return res;
     }

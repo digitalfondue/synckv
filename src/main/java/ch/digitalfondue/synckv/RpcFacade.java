@@ -117,8 +117,11 @@ public class RpcFacade {
         return syncSend(address, new MethodCall("handleGetPartialTableData", new Object[]{tableName, exportLeaves}, new Class[]{String.class, ExportLeaf[].class}));
     }
 
+    // We receive the leaf from the remote, if we remove them (the equals one) from our local tree, we have the
+    // difference, thus the bucket that need to be sent.
+    //
+    // Note: it's unidirectional, but due to the nature of the sync process, it will converge
     public List<byte[][]> handleGetPartialTableData(String tableName, ExportLeaf[] remote) {
-
         List<byte[][]> res = new ArrayList<>();
         MerkleTreeVariantRoot tableTree = syncKV.getTableTree(tableName);
         SyncKVTable localTable = syncKV.getTable(tableName);
@@ -130,7 +133,6 @@ public class RpcFacade {
                 res.add(new byte[][]{rawKey, localTable.getRawKV(rawKey)});
             });
         }
-        System.err.println("partial sync for table " + tableName + " " + res.size() + " values");
         return res;
     }
     // -----------------
@@ -161,7 +163,7 @@ public class RpcFacade {
         try {
             return rpcDispatcher.callRemoteMethodWithFuture(address, call, RequestOptions.SYNC());
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Error while calling handleGetTableMetadataForSync", e);
+            LOGGER.log(Level.WARNING, "Error while calling syncSend", e);
             return null;
         }
     }

@@ -5,7 +5,6 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * Inspired by https://bitcoin.stackexchange.com/questions/51423/how-do-you-create-a-merkle-tree-that-lets-you-insert-and-delete-elements-without/52811#52811 .
@@ -29,19 +28,17 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         this.depth = depth;
     }
 
-    List<Export> exportStructureOnly() {
-        List<Export> export = new ArrayList<>();
-        export.add(new ExportRoot((byte) children.length, hash, keyCount.get()));
+    ExportLeaf[] exportLeafStructureOnly() {
+
+        List<ExportLeaf> export = new ArrayList<>();
+
         for (Node n : children) {
             if (n != null) {
                 n.export(export);
             }
         }
-        return export;
-    }
 
-    ExportLeaf[] exportLeafStructureOnly() {
-        return exportStructureOnly().stream().filter(e -> e instanceof ExportLeaf).map(ExportLeaf.class::cast).toArray(s -> new ExportLeaf[s]);
+        return export.toArray(new ExportLeaf[export.size()]);
     }
 
     SortedSet<ByteBuffer> getKeysForPath(byte[] path) {
@@ -52,43 +49,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         return node.content;
     }
 
-    static abstract class Export implements Serializable {
-    }
-
-    static class ExportRoot extends Export {
-
-        private final int hash;
-        private final byte breadth;
-        private final int keyCount;
-
-        private ExportRoot(byte breadth, int hash, int keyCount) {
-            this.breadth = breadth;
-            this.hash = hash;
-            this.keyCount = keyCount;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("ExportRoot{hash: %d, breadth: %d, keyCount: %d}", hash, breadth, keyCount);
-        }
-    }
-
-    static class ExportNode extends Export {
-        private final int hash;
-        private final byte[] path;
-
-        private ExportNode(int hash, ByteArrayOutputStream baos) {
-            this.hash = hash;
-            this.path = baos.toByteArray();
-        }
-
-        @Override
-        public String toString() {
-            return String.format("ExportNode{hash: %d, path:%s}", hash, format(path));
-        }
-    }
-
-    static class ExportLeaf extends Export {
+    static class ExportLeaf implements Serializable {
         private final int hash;
         private final int keyCount;
         private final byte[] path;
@@ -268,18 +229,12 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             parent.path(sb);
             sb.write(parent.position(this));
         }
-
-        private static Export getLast(List<Export> l) {
-            return l.size() > 0 ? l.get(l.size() - 1) : null;
-        }
-
-        void export(List<Export> export) {
+        
+        void export(List<ExportLeaf> export) {
             ByteArrayOutputStream sb = new ByteArrayOutputStream();
             path(sb);
             if (depth == 0) {
                 export.add(new ExportLeaf(hash, content == null ? 0 : content.size(), sb));
-            } else {
-                export.add(new ExportNode(hash, sb));
             }
             if (children != null) {
                 for (int i = 0; i < children.length; i++) {

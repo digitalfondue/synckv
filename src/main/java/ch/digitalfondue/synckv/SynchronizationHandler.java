@@ -73,7 +73,7 @@ class SynchronizationHandler implements Runnable {
 
     private void syncTable(Address remote, String tableName, boolean fullSync) {
         try {
-            System.err.println(syncKV.getClusterMemberName() + " syncTable with " + remote + " for table " + tableName + " full sync: " + fullSync);
+            System.err.println("need to sync!");
             if (fullSync) {
                 //full sync code here
                 List<byte[][]> tablePayload = rpcFacade.getFullTableData(remote, tableName).get();
@@ -83,7 +83,6 @@ class SynchronizationHandler implements Runnable {
                 MerkleTreeVariantRoot.ExportLeaf[] exportLeaves = syncKV.getTableTree(tableName).exportLeafStructureOnly();
                 List<byte[][]> tablePayload = rpcFacade.getPartialTableData(remote, tableName, exportLeaves).get();
                 syncKV.getTable(tableName).importRawData(tablePayload);
-
             }
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "Error while calling syncTable", e);
