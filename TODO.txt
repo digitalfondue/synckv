@@ -1,5 +1,4 @@
 - cleanup, documentation, tests, ... ?
-- switch from byte[][] to KV
 - add a more structured data support so we can build some kind of query system over it
 - clock skew detection
 - duplicate key insertion detection

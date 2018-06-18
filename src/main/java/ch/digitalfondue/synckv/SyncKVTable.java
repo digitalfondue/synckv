@@ -99,14 +99,14 @@ public class SyncKVTable {
 
 
     public byte[] get(String key) {
-        byte[][] res = get(key, true);
-        return res != null ? res[1] : null;
+        KV res = get(key, true);
+        return res != null ? res.v : null;
     }
 
 
     //fetching a key, mean that we need to iterate as we may have multiple value for the same key
     //as the key are sorted, we only need to get the last one that have the same prefix and the same length (adjusted)
-    byte[][] get(String key, boolean distributed) {
+    KV get(String key, boolean distributed) {
         byte[] rawKey = key.getBytes(StandardCharsets.UTF_8);
 
         int adjustedKeyLength = rawKey.length + METADATA_LENGTH;
@@ -130,16 +130,16 @@ public class SyncKVTable {
 
         //
         if (distributed && res == null && rpcFacade != null && !disableSync.get()) { //try to fetch the value in the cluster if it's not present locally
-            byte[][] remote = rpcFacade.getValue(channel.getAddress(), table.getName(), key);
+            KV remote = rpcFacade.getValue(channel.getAddress(), table.getName(), key);
 
             //add value if it's missing
-            if (remote != null && remote[0] != null) {
-                addRawKV(remote[0], remote[1]);
+            if (remote != null && remote.k != null) {
+                addRawKV(remote.k, remote.v);
             }
             //
             return remote;
         } else {
-            return new byte[][]{selectedKey, res};
+            return new KV(selectedKey, res);
         }
     }
 

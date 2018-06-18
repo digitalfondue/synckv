@@ -56,9 +56,9 @@ public class RpcFacade {
 
     // --- GET ---------
 
-    private static final Comparator<byte[][]> DESC_METADATA_ORDER = Comparator.<byte[][], ByteBuffer>comparing(payload -> ByteBuffer.wrap(payload[0])).reversed();
+    private static final Comparator<KV> DESC_METADATA_ORDER = Comparator.<KV, ByteBuffer>comparing(payload -> ByteBuffer.wrap(payload.k)).reversed();
 
-    byte[][] getValue(Address src, String table, String key) {
+    KV getValue(Address src, String table, String key) {
         JChannel channel = syncKV.getChannel();
         List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
 
@@ -67,14 +67,14 @@ public class RpcFacade {
         }
 
         MethodCall call = new MethodCall("handleGetValue", new Object[]{Utils.addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
-        byte[][] res = null;
+        KV res = null;
         try {
-            RspList<byte[][]> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
+            RspList<KV> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
 
             //fetch the value with the "biggest" metadata concatenate(insertion_time,seed)
             res = rsps.getResults()
                     .stream()
-                    .filter(payload -> payload != null && payload[0] != null)
+                    .filter(payload -> payload != null && payload.k != null)
                     .sorted(DESC_METADATA_ORDER)
                     .findFirst()
                     .orElse(null);
@@ -84,7 +84,7 @@ public class RpcFacade {
         return res;
     }
 
-    public byte[][] handleGetValue(String src, String table, String key) {
+    public KV handleGetValue(String src, String table, String key) {
         Address address = Utils.fromBase64(src);
         if (address.equals(getCurrentAddress())) {
             return null;
