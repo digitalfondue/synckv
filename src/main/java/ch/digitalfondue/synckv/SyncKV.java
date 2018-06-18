@@ -174,11 +174,11 @@ public class SyncKV implements AutoCloseable, Closeable {
         return channel.getAddress();
     }
 
-    Map<String, TableAndPartialTreeData> getTableMetadataForSync() {
-        Map<String, TableAndPartialTreeData> res = new HashMap<>();
+    Map<String, TableStats> getTableMetadataForSync() {
+        Map<String, TableStats> res = new HashMap<>();
 
         syncMap.forEach((k, v) -> {
-            res.put(k, new TableAndPartialTreeData(v.getKeyCount(), v.getHash()));
+            res.put(k, new TableStats(v.getKeyCount(), v.getHash()));
         });
         return res;
     }

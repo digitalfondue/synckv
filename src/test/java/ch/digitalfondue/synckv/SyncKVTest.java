@@ -19,7 +19,7 @@ public class SyncKVTest {
 
         AtomicInteger keyGenerator = new AtomicInteger();
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 10000; i++) {
 
             String key = Integer.toString(keyGenerator.incrementAndGet());
             System.err.println("adding in kv with key " + key);
@@ -34,7 +34,7 @@ public class SyncKVTest {
         SyncKV k3 = new SyncKV(null, "SyncKV");
         k3.disableSync.set(true);
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 2000; i++) {
             String key = Integer.toString(keyGenerator.incrementAndGet());
             boolean choice = r.nextBoolean();
             System.err.println("adding in k" + (choice ? "2" : "3") + " with key " + key);

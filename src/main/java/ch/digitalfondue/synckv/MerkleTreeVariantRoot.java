@@ -28,7 +28,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         this.depth = depth;
     }
 
-    ExportLeaf[] exportLeafStructureOnly() {
+    List<ExportLeaf> exportLeafStructureOnly() {
 
         List<ExportLeaf> export = new ArrayList<>();
 
@@ -37,8 +37,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
                 n.export(export);
             }
         }
-
-        return export.toArray(new ExportLeaf[export.size()]);
+        return export;
     }
 
     SortedSet<ByteBuffer> getKeysForPath(byte[] path) {

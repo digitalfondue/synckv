@@ -26,7 +26,7 @@ public class RpcFacade {
         this.syncKV = syncKV;
     }
 
-    public void setRpcDispatcher(RpcDispatcher rpcDispatcher) {
+    void setRpcDispatcher(RpcDispatcher rpcDispatcher) {
         this.rpcDispatcher = rpcDispatcher;
     }
 
@@ -94,11 +94,11 @@ public class RpcFacade {
     }
 
     // --- STEP 1 ------
-    CompletableFuture<Map<String, TableAndPartialTreeData>> getTableMetadataForSync(Address address) {
+    CompletableFuture<Map<String, TableStats>> getTableMetadataForSync(Address address) {
         return syncSend(address, new MethodCall("handleGetTableMetadataForSync", new Object[]{}, new Class[]{}));
     }
 
-    public Map<String, TableAndPartialTreeData> handleGetTableMetadataForSync() {
+    public Map<String, TableStats> handleGetTableMetadataForSync() {
         return syncKV.getTableMetadataForSync();
     }
 
@@ -113,20 +113,20 @@ public class RpcFacade {
     }
 
     // -----------------
-    CompletableFuture<List<byte[][]>> getPartialTableData(Address address, String tableName, ExportLeaf[] exportLeaves) {
-        return syncSend(address, new MethodCall("handleGetPartialTableData", new Object[]{tableName, exportLeaves}, new Class[]{String.class, ExportLeaf[].class}));
+    CompletableFuture<List<byte[][]>> getPartialTableData(Address address, String tableName, List<ExportLeaf> exportLeaves) {
+        return syncSend(address, new MethodCall("handleGetPartialTableData", new Object[]{tableName, exportLeaves}, new Class[]{String.class, List.class}));
     }
 
     // We receive the leaf from the remote, if we remove them (the equals one) from our local tree, we have the
     // difference, thus the bucket that need to be sent.
     //
     // Note: it's unidirectional, but due to the nature of the sync process, it will converge
-    public List<byte[][]> handleGetPartialTableData(String tableName, ExportLeaf[] remote) {
+    public List<byte[][]> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
         List<byte[][]> res = new ArrayList<>();
         MerkleTreeVariantRoot tableTree = syncKV.getTableTree(tableName);
         SyncKVTable localTable = syncKV.getTable(tableName);
-        Set<ExportLeaf> local = new HashSet<>(Arrays.asList(tableTree.exportLeafStructureOnly()));
-        local.removeAll(Arrays.asList(remote));
+        Set<ExportLeaf> local = new HashSet<>(tableTree.exportLeafStructureOnly());
+        local.removeAll(remote);
         for (ExportLeaf el : local) {
             tableTree.getKeysForPath(el.getPath()).forEach(bb -> {
                 byte[] rawKey = bb.array();

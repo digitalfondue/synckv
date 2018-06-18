@@ -3,7 +3,6 @@ package ch.digitalfondue.synckv;
 import org.jgroups.Address;
 
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -50,13 +49,13 @@ class SynchronizationHandler implements Runnable {
 
     private void synchronizeDB(Address address) {
         try {
-            Map<String, TableAndPartialTreeData> remote = rpcFacade.getTableMetadataForSync(address).get();
+            Map<String, TableStats> remote = rpcFacade.getTableMetadataForSync(address).join();
 
-            Map<String, TableAndPartialTreeData> local = syncKV.getTableMetadataForSync();
+            Map<String, TableStats> local = syncKV.getTableMetadataForSync();
 
             remote.forEach((tableName, remoteMetadata) -> {
                 if (local.containsKey(tableName)) {
-                    TableAndPartialTreeData localMetadata = local.get(tableName);
+                    TableStats localMetadata = local.get(tableName);
                     if (remoteMetadata.hash != localMetadata.hash || remoteMetadata.keyCount != localMetadata.keyCount) {
                         syncTable(address, tableName, false);
                     } else {
@@ -66,7 +65,7 @@ class SynchronizationHandler implements Runnable {
                     syncTable(address, tableName, true);
                 }
             });
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (Throwable e) {
             LOGGER.log(Level.WARNING, "Error while calling synchronizeDB", e);
         }
     }
@@ -76,15 +75,15 @@ class SynchronizationHandler implements Runnable {
             System.err.println("need to sync!");
             if (fullSync) {
                 //full sync code here
-                List<byte[][]> tablePayload = rpcFacade.getFullTableData(remote, tableName).get();
+                List<byte[][]> tablePayload = rpcFacade.getFullTableData(remote, tableName).join();
                 syncKV.getTable(tableName).importRawData(tablePayload);
             } else {
                 //partial sync here
-                MerkleTreeVariantRoot.ExportLeaf[] exportLeaves = syncKV.getTableTree(tableName).exportLeafStructureOnly();
-                List<byte[][]> tablePayload = rpcFacade.getPartialTableData(remote, tableName, exportLeaves).get();
+                List<MerkleTreeVariantRoot.ExportLeaf> exportLeaves = syncKV.getTableTree(tableName).exportLeafStructureOnly();
+                List<byte[][]> tablePayload = rpcFacade.getPartialTableData(remote, tableName, exportLeaves).join();
                 syncKV.getTable(tableName).importRawData(tablePayload);
             }
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (Throwable e) {
             LOGGER.log(Level.WARNING, "Error while calling syncTable", e);
         }
     }
