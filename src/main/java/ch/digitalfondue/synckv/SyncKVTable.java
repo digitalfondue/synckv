@@ -4,6 +4,9 @@ import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.jgroups.JChannel;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -18,8 +21,8 @@ public class SyncKVTable {
     private final JChannel channel;
     private final MVMap<byte[], byte[]> table;
 
-    //nanoTime and random.nextLong
-    private static final int METADATA_LENGTH = 2 * Long.BYTES;
+    //nanoTime and random.nextInt
+    private static final int METADATA_LENGTH = Long.BYTES + Integer.BYTES;
     private final MerkleTreeVariantRoot syncTree;
     private final AtomicBoolean disableSync;
 
@@ -39,19 +42,26 @@ public class SyncKVTable {
                 .collect(Collectors.toCollection(TreeSet::new)); //keep the order and remove duplicate keys
     }
 
+    Set<String> rawKeySet() {
+        return table.keySet()
+                .stream()
+                .map(s -> {
+                    String res = new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+                    DataInputStream dis = new DataInputStream(new ByteArrayInputStream(s, s.length - METADATA_LENGTH, s.length));
+                    try {
+                        return res + "_" + dis.readLong() + "_" + dis.readInt();
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                }).collect(Collectors.toCollection(TreeSet::new));
+    }
+
     public int count() {
         return keySet().size();
     }
-    
+
     public Iterator<String> keys() {
         return keySet().iterator();
-    }
-
-    Set<String> rawKeySet() {
-        return table.keySet().stream()
-                .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8) +
-                        "_" + s[s.length - 4] + "_" + s[s.length - 3] + "_" + s[s.length - 2] + "_" + s[s.length - 1])
-                .collect(Collectors.toSet());
     }
 
     // the key are structured as:
@@ -67,7 +77,7 @@ public class SyncKVTable {
         bf.put(rawKey);
         //
         bf.putLong(time);
-        bf.putLong(random.nextLong());
+        bf.putInt(random.nextInt());
         //
 
         byte[] finalKey = bf.array();

@@ -6,6 +6,10 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class MerkleTreeVariantRootTest {
 
@@ -29,12 +33,6 @@ public class MerkleTreeVariantRootTest {
         Assert.assertEquals(r1.getHash(), r2.getHash());
 
         //r1.exportStructureOnly().forEach(System.err::println);
-    }
-
-
-    @Test
-    public void testSerialization() throws IOException {
-
     }
 
     private static int serializationLength(Object a) throws IOException {
