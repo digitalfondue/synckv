@@ -2,8 +2,10 @@ package ch.digitalfondue.synckv;
 
 import org.jgroups.Address;
 
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -14,7 +16,6 @@ class SynchronizationHandler implements Runnable {
 
     private final SyncKV syncKV;
     private final RpcFacade rpcFacade;
-    private AtomicBoolean running = new AtomicBoolean(false);
     private final Random random = new Random();
 
     SynchronizationHandler(SyncKV syncKV, RpcFacade rpcFacade) {
@@ -29,21 +30,19 @@ class SynchronizationHandler implements Runnable {
             return;
         }
 
-        if (!running.get()) {
-            try {
-                running.set(true);
-                List<Address> a = new ArrayList<>(syncKV.getClusterMembers());
-                a.remove(syncKV.getAddress());
+        //only one is run in a single synckv instance
+        try {
+            LOGGER.log(Level.FINE, "Running sync");
+            List<Address> a = new ArrayList<>(syncKV.getClusterMembers());
+            a.remove(syncKV.getAddress());
 
-                if (!a.isEmpty()) {
-                    Address randomAddress = a.get(Math.abs(random.nextInt()) % a.size());
-                    synchronizeDB(randomAddress);
-                }
-            } catch (Throwable t) {
-                LOGGER.log(Level.WARNING, "Error while processing the synchronization process", t);
-            } finally {
-                running.set(false);
+            if (!a.isEmpty()) {
+                Address randomAddress = a.get(Math.abs(random.nextInt()) % a.size());
+                synchronizeDB(randomAddress);
             }
+            LOGGER.log(Level.FINE, "End running sync");
+        } catch (Throwable t) {
+            LOGGER.log(Level.WARNING, "Error while processing the synchronization process", t);
         }
     }
 
@@ -59,7 +58,7 @@ class SynchronizationHandler implements Runnable {
                     if (remoteMetadata.hash != localMetadata.hash || remoteMetadata.keyCount != localMetadata.keyCount) {
                         syncTable(address, tableName, false);
                     } else {
-                        LOGGER.fine(() -> String.format("No need to sync")); //TODO better logger msg
+                        LOGGER.fine(() -> String.format("%s: No need to sync with remote: %s", syncKV.getClusterMemberName(), address)); //TODO better logger msg
                     }
                 } else {
                     syncTable(address, tableName, true);
@@ -72,7 +71,7 @@ class SynchronizationHandler implements Runnable {
 
     private void syncTable(Address remote, String tableName, boolean fullSync) {
         try {
-            LOGGER.fine(() -> String.format("need to sync")); //TODO better logger msg
+            LOGGER.fine(() -> String.format("%s: Need to sync table: %s with remote: %s", syncKV.getClusterMemberName(), tableName, remote)); //TODO better logger msg
             if (fullSync) {
                 //full sync code here
                 List<byte[][]> tablePayload = rpcFacade.getFullTableData(remote, tableName).join();

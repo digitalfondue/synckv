@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -191,7 +192,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
         private synchronized boolean insertValue(ByteBuffer wrapped) {
             if (this.content == null) {
-                this.content = new TreeSet<>();
+                this.content = new ConcurrentSkipListSet<>();
             }
 
             boolean res = content.add(wrapped);
