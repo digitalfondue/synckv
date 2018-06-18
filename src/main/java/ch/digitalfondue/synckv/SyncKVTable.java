@@ -73,8 +73,10 @@ public class SyncKVTable {
     }
 
     synchronized void addRawKV(byte[] key, byte[] value) {
-        table.put(key, value);
-        syncTree.add(key);
+        if (!table.containsKey(key)) {
+            syncTree.add(key);
+            table.put(key, value);
+        }
     }
 
 

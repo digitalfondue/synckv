@@ -32,7 +32,6 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final MVStore store;
     private final RpcFacade rpcFacade;
     private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
-    final Map<Address, TableAndPartialTreeData[]> syncPayloads = new ConcurrentHashMap<>();
     private final ScheduledThreadPoolExecutor scheduledExecutor;
     private AtomicBoolean isSyncInProgress = new AtomicBoolean(false);
 
@@ -176,6 +175,10 @@ public class SyncKV implements AutoCloseable, Closeable {
         return channel != null ? channel.view().getMembers().stream().map(Address::toString).collect(Collectors.toList()) : Collections.emptyList();
     }
 
+    List<Address> getClusterMembers() {
+        return channel != null ? channel.view().getMembers() : Collections.emptyList();
+    }
+
     public boolean isLeader() {
         return channel != null ? channel.getView().getMembers().get(0).equals(channel.getAddress()) : true;
     }
@@ -184,14 +187,13 @@ public class SyncKV implements AutoCloseable, Closeable {
         return channel.getAddress();
     }
 
-    TableAndPartialTreeData[] getTableMetadataForSync() {
-        List<TableAndPartialTreeData> res = new ArrayList<>();
+    Map<String, TableAndPartialTreeData> getTableMetadataForSync() {
+        Map<String, TableAndPartialTreeData> res = new HashMap<>();
 
         syncMap.forEach((k, v) -> {
-            res.add(new TableAndPartialTreeData(k, v.getKeyCount(), v.getHash()));
+            res.put(k, new TableAndPartialTreeData(k, v.getKeyCount(), v.getHash()));
         });
-
-        return res.toArray(new TableAndPartialTreeData[res.size()]);
+        return res;
     }
 
     @Override

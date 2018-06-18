@@ -12,4 +12,9 @@ class TableAndPartialTreeData implements Serializable {
         this.keyCount = keyCount;
         this.hash = hash;
     }
+
+    @Override
+    public String toString() {
+        return String.format("TableAndPartialTreeData{name: %s, keyCount: %d, hash: %hash}", name, keyCount, hash);
+    }
 }
