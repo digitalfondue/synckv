@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class SyncKVTable {
@@ -23,13 +24,15 @@ public class SyncKVTable {
     //nanoTime and random.nextLong
     private static final int METADATA_LENGTH = 2 * Long.BYTES;
     private final MerkleTreeVariantRoot syncTree;
+    private final AtomicBoolean disableSync;
 
-    public SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, MerkleTreeVariantRoot syncTree) {
+    public SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, MerkleTreeVariantRoot syncTree, AtomicBoolean disableSync) {
         this.random = random;
         this.rpcFacade = rpcFacade;
         this.channel = channel;
         this.table = store.openMap(tableName);
         this.syncTree = syncTree;
+        this.disableSync = disableSync;
     }
 
     public Set<String> keySet() {
@@ -64,7 +67,7 @@ public class SyncKVTable {
 
         byte[] finalKey = bf.array();
 
-        if (rpcFacade != null) {
+        if (rpcFacade != null && !disableSync.get()) {
             rpcFacade.putRequest(channel.getAddress(), table.getName(), finalKey, value);
         }
 
@@ -112,7 +115,7 @@ public class SyncKVTable {
         byte[] res = selectedKey != null ? table.get(selectedKey) : null;
 
         //
-        if (distributed && res == null && rpcFacade != null) { //try to fetch the value in the cluster if it's not present locally
+        if (distributed && res == null && rpcFacade != null && !disableSync.get()) { //try to fetch the value in the cluster if it's not present locally
             byte[][] remote = rpcFacade.getValue(channel.getAddress(), table.getName(), key);
 
             //add value if it's missing

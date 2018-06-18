@@ -12,6 +12,7 @@ public class SyncKVTest {
     public static void main(String[] args) {
 
         SyncKV kv = new SyncKV(null, "SyncKV");
+        kv.disableSync.set(true);
         SyncKVTable table = kv.getTable("attendees");
 
         Random r = new Random();
@@ -29,7 +30,21 @@ public class SyncKVTest {
 
 
         SyncKV k2 = new SyncKV(null, "SyncKV");
+        k2.disableSync.set(true);
         SyncKV k3 = new SyncKV(null, "SyncKV");
+        k3.disableSync.set(true);
+
+        for (int i = 0; i < 20; i++) {
+            String key = Integer.toString(keyGenerator.incrementAndGet());
+            boolean choice = r.nextBoolean();
+            System.err.println("adding in k" + (choice ? "2" : "3") + " with key " + key);
+            (choice ? k2 : k3).getTable("attendees").put(key, ("hello world " + i).getBytes(StandardCharsets.UTF_8));
+        }
+
+        kv.disableSync.set(false);
+        k2.disableSync.set(false);
+        k3.disableSync.set(false);
+
 
         if (true) {
             new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {

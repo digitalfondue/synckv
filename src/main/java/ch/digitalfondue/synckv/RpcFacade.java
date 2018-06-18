@@ -1,5 +1,6 @@
 package ch.digitalfondue.synckv;
 
+import ch.digitalfondue.synckv.MerkleTreeVariantRoot.ExportLeaf;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.blocks.MethodCall;
@@ -102,13 +103,35 @@ public class RpcFacade {
     }
 
     // -----------------
-
+    // -----------------
     CompletableFuture<List<byte[][]>> getFullTableData(Address address, String tableName) {
         return syncSend(address, new MethodCall("handleGetFullTableData", new Object[]{tableName}, new Class[]{String.class}));
     }
 
     public List<byte[][]> handleGetFullTableData(String tableName) {
         return syncKV.getTable(tableName).exportRawData();
+    }
+
+    // -----------------
+    CompletableFuture<List<byte[][]>> getPartialTableData(Address address, String tableName, ExportLeaf[] exportLeaves) {
+        return syncSend(address, new MethodCall("handleGetPartialTableData", new Object[]{tableName, exportLeaves}, new Class[]{String.class, ExportLeaf[].class}));
+    }
+
+    public List<byte[][]> handleGetPartialTableData(String tableName, ExportLeaf[] remote) {
+
+        List<byte[][]> res = new ArrayList<>();
+        MerkleTreeVariantRoot tableTree = syncKV.getTableTree(tableName);
+        SyncKVTable localTable = syncKV.getTable(tableName);
+        Set<ExportLeaf> local = new HashSet<>(Arrays.asList(tableTree.exportLeafStructureOnly()));
+        local.removeAll(Arrays.asList(remote));
+        for (ExportLeaf el : local) {
+            tableTree.getKeysForPath(el.getPath()).forEach(bb -> {
+                byte[] rawKey = bb.array();
+                res.add(new byte[][]{rawKey, localTable.getRawKV(rawKey)});
+            });
+        }
+        System.err.println("partial sync for table " + tableName + " " + res.size() + " values");
+        return res;
     }
     // -----------------
 
@@ -142,6 +165,5 @@ public class RpcFacade {
             return null;
         }
     }
-
     // -----------------
 }

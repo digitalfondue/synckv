@@ -33,8 +33,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final RpcFacade rpcFacade;
     private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
     private final ScheduledThreadPoolExecutor scheduledExecutor;
-    private AtomicBoolean isSyncInProgress = new AtomicBoolean(false);
-
+    final AtomicBoolean disableSync = new AtomicBoolean();
 
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
@@ -67,7 +66,7 @@ public class SyncKV implements AutoCloseable, Closeable {
 
                 this.scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 
-                this.scheduledExecutor.scheduleAtFixedRate(new SynchronizationHandler(this, rpcFacade), 0, 10, TimeUnit.SECONDS);
+                this.scheduledExecutor.scheduleAtFixedRate(new SynchronizationHandler(this, rpcFacade), 2, 10, TimeUnit.SECONDS);
 
             } catch (Exception e) {
                 throw new IllegalStateException(e);
@@ -76,18 +75,6 @@ public class SyncKV implements AutoCloseable, Closeable {
             this.rpcFacade = null;
             this.scheduledExecutor = null;
         }
-    }
-
-    void syncInProgress() {
-        this.isSyncInProgress.set(true);
-    }
-
-    void syncInProgressDone() {
-        this.isSyncInProgress.set(false);
-    }
-
-    boolean isSyncInProgress() {
-        return isSyncInProgress.get();
     }
 
     public SyncKV(String fileName, String password, String channelName) {
@@ -106,7 +93,7 @@ public class SyncKV implements AutoCloseable, Closeable {
         if (!syncMap.containsKey(name)) {
             syncMap.put(name, buildTree());
         }
-        return new SyncKVTable(name, store, random, rpcFacade, channel, syncMap.get(name));
+        return new SyncKVTable(name, store, random, rpcFacade, channel, syncMap.get(name), disableSync);
     }
 
     public static void ensureProtocol() {

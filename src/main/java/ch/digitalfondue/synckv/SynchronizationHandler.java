@@ -26,6 +26,10 @@ class SynchronizationHandler implements Runnable {
     @Override
     public void run() {
 
+        if(syncKV.disableSync.get()) {
+            return;
+        }
+
         if (!running.get()) {
             try {
                 running.set(true);
@@ -76,6 +80,10 @@ class SynchronizationHandler implements Runnable {
                 syncKV.getTable(tableName).importRawData(tablePayload);
             } else {
                 //partial sync here
+                MerkleTreeVariantRoot.ExportLeaf[] exportLeaves = syncKV.getTableTree(tableName).exportLeafStructureOnly();
+                List<byte[][]> tablePayload = rpcFacade.getPartialTableData(remote, tableName, exportLeaves).get();
+                syncKV.getTable(tableName).importRawData(tablePayload);
+
             }
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "Error while calling syncTable", e);
