@@ -104,16 +104,16 @@ public class RpcFacade {
 
     // -----------------
     // -----------------
-    CompletableFuture<List<byte[][]>> getFullTableData(Address address, String tableName) {
+    CompletableFuture<List<KV>> getFullTableData(Address address, String tableName) {
         return syncSend(address, new MethodCall("handleGetFullTableData", new Object[]{tableName}, new Class[]{String.class}));
     }
 
-    public List<byte[][]> handleGetFullTableData(String tableName) {
+    public List<KV> handleGetFullTableData(String tableName) {
         return syncKV.getTable(tableName).exportRawData();
     }
 
     // -----------------
-    CompletableFuture<List<byte[][]>> getPartialTableData(Address address, String tableName, List<ExportLeaf> exportLeaves) {
+    CompletableFuture<List<KV>> getPartialTableData(Address address, String tableName, List<ExportLeaf> exportLeaves) {
         return syncSend(address, new MethodCall("handleGetPartialTableData", new Object[]{tableName, exportLeaves}, new Class[]{String.class, List.class}));
     }
 
@@ -121,8 +121,8 @@ public class RpcFacade {
     // difference, thus the bucket that need to be sent.
     //
     // Note: it's unidirectional, but due to the nature of the sync process, it will converge
-    public List<byte[][]> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
-        List<byte[][]> res = new ArrayList<>();
+    public List<KV> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
+        List<KV> res = new ArrayList<>();
         MerkleTreeVariantRoot tableTree = syncKV.getTableTree(tableName);
         SyncKVTable localTable = syncKV.getTable(tableName);
         Set<ExportLeaf> local = new HashSet<>(tableTree.exportLeafStructureOnly());
@@ -130,7 +130,7 @@ public class RpcFacade {
         for (ExportLeaf el : local) {
             tableTree.getKeysForPath(el.getPath()).forEach(bb -> {
                 byte[] rawKey = bb.array();
-                res.add(new byte[][]{rawKey, localTable.getRawKV(rawKey)});
+                res.add(new KV(rawKey, localTable.getRawKV(rawKey)));
             });
         }
         return res;

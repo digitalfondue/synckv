@@ -147,13 +147,13 @@ public class SyncKVTable {
         return table.get(k);
     }
 
-    List<byte[][]> exportRawData() {
-        return table.keySet().stream().map(key -> new byte[][]{key, table.get(key)}).collect(Collectors.toList());
+    List<KV> exportRawData() {
+        return table.keySet().stream().map(key -> new KV(key, table.get(key))).collect(Collectors.toList());
     }
 
-    void importRawData(List<byte[][]> tablePayload) {
-        for (byte[][] kv : tablePayload) {
-            addRawKV(kv[0], kv[1]);
+    void importRawData(List<KV> tablePayload) {
+        for (KV kv : tablePayload) {
+            addRawKV(kv.k, kv.v);
         }
     }
 
