@@ -1,4 +1,4 @@
-package ch.digitalfondue.synckv.bloom;
+package ch.digitalfondue.synckv;
 
 // imported from https://github.com/apache/hadoop/tree/master/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/util/bloom
 // and modified.
@@ -21,7 +21,7 @@ package ch.digitalfondue.synckv.bloom;
  * limitations under the License.
  */
 
-
+import java.nio.ByteBuffer;
 
 /**
  * This is a very fast, non-cryptographic hash suitable for general hash-based
@@ -30,21 +30,23 @@ package ch.digitalfondue.synckv.bloom;
  * <p>The C version of MurmurHash 2.0 found at that site was ported
  * to Java by Andrzej Bialecki (ab at getopt org).</p>
  */
-public class MurmurHash {
+class MurmurHash {
 
-    static final MurmurHash HASH = new MurmurHash();
+    static int hash(byte[] data) {
+        return hash(data, -1);
+    }
 
-    public static int hash(byte[] data) {
-        return HASH.hash(data, -1);
+    static int hash(ByteBuffer bb) {
+        return hash(bb.array());
     }
 
 
-    public int hash(byte[] bytes, int initval) {
+    private static int hash(byte[] bytes, int initval) {
         return hash(bytes, bytes.length, initval);
     }
 
 
-    int hash(byte[] data, int length, int seed) {
+    private static int hash(byte[] data, int length, int seed) {
         int m = 0x5bd1e995;
         int r = 24;
 

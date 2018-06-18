@@ -55,6 +55,12 @@
             <artifactId>h2-mvstore</artifactId>
             <version>1.4.197</version>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
