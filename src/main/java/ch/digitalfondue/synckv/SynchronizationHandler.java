@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,6 +18,7 @@ class SynchronizationHandler implements Runnable {
     private final SyncKV syncKV;
     private final RpcFacade rpcFacade;
     private final Random random = new Random();
+    private AtomicReference<Address> lastUsedAddress = new AtomicReference<>();
 
     SynchronizationHandler(SyncKV syncKV, RpcFacade rpcFacade) {
         this.syncKV = syncKV;
@@ -36,8 +38,16 @@ class SynchronizationHandler implements Runnable {
             List<Address> a = new ArrayList<>(syncKV.getClusterMembers());
             a.remove(syncKV.getAddress());
 
+            // try to rotate more by removing
+            Address lastUsedAddr = lastUsedAddress.get();
+            if (a.size() > 1 && lastUsedAddr != null) {
+                a.remove(lastUsedAddr);
+            }
+            //
+
             if (!a.isEmpty()) {
                 Address randomAddress = a.get(Math.abs(random.nextInt()) % a.size());
+                lastUsedAddress.set(randomAddress);
                 synchronizeDB(randomAddress);
             }
             LOGGER.log(Level.FINE, "End running sync");
