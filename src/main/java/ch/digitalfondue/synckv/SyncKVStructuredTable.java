@@ -13,7 +13,7 @@ public class SyncKVStructuredTable<T> {
     private final SyncKVTable table;
     private final DataConverter<T> dataConverter;
 
-    public SyncKVStructuredTable(SyncKVTable table, DataConverterFrom<T> from, DataConverterTo<T> to) {
+    SyncKVStructuredTable(SyncKVTable table, DataConverterFrom<T> from, DataConverterTo<T> to) {
         this.table = table;
         this.dataConverter = new DataConverter<>(from, to);
     }

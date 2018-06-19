@@ -26,7 +26,7 @@ public class SyncKVTable {
     private final MerkleTreeVariantRoot syncTree;
     private final AtomicBoolean disableSync;
 
-    public SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, MerkleTreeVariantRoot syncTree, AtomicBoolean disableSync) {
+    SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, MerkleTreeVariantRoot syncTree, AtomicBoolean disableSync) {
         this.random = random;
         this.rpcFacade = rpcFacade;
         this.channel = channel;

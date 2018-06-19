@@ -18,6 +18,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+/**
+ * Internal use.
+ * RPC facade for inter node communication.
+ */
 public class RpcFacade {
 
     private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
@@ -25,7 +29,7 @@ public class RpcFacade {
     private final SyncKV syncKV;
     private RpcDispatcher rpcDispatcher;
 
-    public RpcFacade(SyncKV syncKV) {
+    RpcFacade(SyncKV syncKV) {
         this.syncKV = syncKV;
     }
 

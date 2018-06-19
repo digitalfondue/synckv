@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+/**
+ * Represent the key-value store.
+ */
 public class SyncKV implements AutoCloseable, Closeable {
 
     static {
@@ -38,9 +41,10 @@ public class SyncKV implements AutoCloseable, Closeable {
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
      *
-     * @param fileName
-     * @param password
-     * @param channel
+     * @param fileName the db file, pass null for an in memory representation
+     * @param password password for encrypting the file _and_ the communication between nodes. Pass null if you want to ignore this option.
+     * @param channel custom {@link JChannel} configuration. Pass null if you don't need the sync feature, which can be useful for local data.
+     * @param channelName name of the channel.
      */
     public SyncKV(String fileName, String password, JChannel channel, String channelName) {
 
@@ -77,10 +81,23 @@ public class SyncKV implements AutoCloseable, Closeable {
         }
     }
 
+    /**
+     * Create a SyncKV instance with default settings. A {@link JChannel} will be built using a tcp_nio2+mping stack with the specified channel name.
+     *
+     * @param fileName fileName the db file, pass null for an in memory representation
+     * @param password password for encrypting the file _and_ the communication between nodes. Pass null if you want to ignore this option.
+     * @param channelName name of the channel.
+     */
     public SyncKV(String fileName, String password, String channelName) {
         this(fileName, password, buildChannel(password), channelName);
     }
 
+    /**
+     * Create a SyncKV instance with default settings. A {@link JChannel} will be built using a tcp_nio2+mping stack with the channelName "syncKV".
+     *
+     * @param fileName fileName the db file, pass null for an in memory representation
+     * @param password password for encrypting the file _and_ the communication between nodes. Pass null if you want to ignore this option.
+     */
     public SyncKV(String fileName, String password) {
         this(fileName, password, buildChannel(password), "syncKV");
     }
