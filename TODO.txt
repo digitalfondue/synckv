@@ -1,7 +1,7 @@
 - cleanup, documentation, tests, ... ?
-- add a more structured data support so we can build some kind of query system over it
 - clock skew detection
 - duplicate key insertion detection
+- GC for old keys ?
 - sync statistics
    - [table, key received count, last received]
    . [table, key sent count, last sent]

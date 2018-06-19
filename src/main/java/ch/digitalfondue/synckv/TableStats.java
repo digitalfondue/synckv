@@ -2,7 +2,7 @@ package ch.digitalfondue.synckv;
 
 import java.io.Serializable;
 
-class TableStats implements Serializable {
+final class TableStats implements Serializable {
     final int keyCount;
     final int hash;
 

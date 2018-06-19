@@ -6,7 +6,10 @@ import org.jgroups.JChannel;
 import org.jgroups.blocks.MethodCall;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
+import org.jgroups.util.ByteArrayDataInputStream;
+import org.jgroups.util.ByteArrayDataOutputStream;
 import org.jgroups.util.RspList;
+import org.jgroups.util.Util;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -37,12 +40,12 @@ public class RpcFacade {
     // --- PUT ---------
 
     void putRequest(Address source, String table, byte[] key, byte[] value) {
-        broadcastToEverybodyElse(new MethodCall("handlePutRequest", new Object[]{Utils.addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, byte[].class, byte[].class}));
+        broadcastToEverybodyElse(new MethodCall("handlePutRequest", new Object[]{addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, byte[].class, byte[].class}));
     }
 
     public void handlePutRequest(String src, String table, byte[] key, byte[] value) {
 
-        Address source = Utils.fromBase64(src);
+        Address source = fromBase64(src);
 
         if (source.equals(getCurrentAddress())) {
             //calling himself, ignore
@@ -66,7 +69,7 @@ public class RpcFacade {
             return null;
         }
 
-        MethodCall call = new MethodCall("handleGetValue", new Object[]{Utils.addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
+        MethodCall call = new MethodCall("handleGetValue", new Object[]{addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
         KV res = null;
         try {
             RspList<KV> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
@@ -85,7 +88,7 @@ public class RpcFacade {
     }
 
     public KV handleGetValue(String src, String table, String key) {
-        Address address = Utils.fromBase64(src);
+        Address address = fromBase64(src);
         if (address.equals(getCurrentAddress())) {
             return null;
         } else {
@@ -168,4 +171,22 @@ public class RpcFacade {
         }
     }
     // -----------------
+
+    static Address fromBase64(String encoded) {
+        try {
+            return Util.readAddress(new ByteArrayDataInputStream(Base64.getDecoder().decode(encoded)));
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    static String addressToBase64(Address address) {
+        ByteArrayDataOutputStream out = new ByteArrayDataOutputStream();
+        try {
+            Util.writeAddress(address, out);
+            return Base64.getEncoder().encodeToString(out.getByteBuffer().array());
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
 }
