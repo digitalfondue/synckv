@@ -22,8 +22,8 @@ public class SyncKVTable {
     private final MVMap<byte[], byte[]> table;
     private final MVStore store;
 
-    //nanoTime and random.nextInt
-    private static final int METADATA_LENGTH = Long.BYTES + Integer.BYTES;
+    //currentTimeInMilli and nanoTime and random.nextInt
+    private static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
     private final MerkleTreeVariantRoot syncTree;
     private final AtomicBoolean disableSync;
 
@@ -69,16 +69,18 @@ public class SyncKVTable {
     // the key are structured as:
     // + is = concatenation
     //
-    // key.bytes+nanoTime+seed
+    // key.bytes+currentTime+nanoTime+seed
     public synchronized boolean put(String key, byte[] value) {
-        long time = System.nanoTime();
+        long currentTime = System.currentTimeMillis();
+        long nanoTime = System.nanoTime();
 
         byte[] rawKey = key.getBytes(StandardCharsets.UTF_8);
 
         ByteBuffer bf = ByteBuffer.allocate(rawKey.length + METADATA_LENGTH);
         bf.put(rawKey);
         //
-        bf.putLong(time);
+        bf.putLong(currentTime);
+        bf.putLong(nanoTime);
         bf.putInt(random.nextInt());
         //
 
