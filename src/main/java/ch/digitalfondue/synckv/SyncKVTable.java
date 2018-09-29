@@ -108,7 +108,6 @@ public class SyncKVTable {
         if (!table.containsKey(key)) {
             syncTree.add(key);
             table.put(key, value);
-            store.commit();
         }
     }
 
