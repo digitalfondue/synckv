@@ -34,6 +34,9 @@ public class MerkleTreeVariantRootTest {
     @Test
     public void removeValues() {
         MerkleTreeVariantRoot r1 = new MerkleTreeVariantRoot((byte) 3, (byte) 7);
+
+        int hash0Key = r1.getHash();
+
         r1.add(new byte[]{0, 1});
         int hash1Key = r1.getHash();
 
@@ -63,8 +66,13 @@ public class MerkleTreeVariantRootTest {
 
 
         r1.remove(new byte[] {1, 0});
+        Assert.assertEquals(1, r1.getKeyCount());
         Assert.assertEquals(hash1Key, r1.getHash());
 
+        r1.remove(new byte[] {0, 1});
+
+        Assert.assertEquals(0, r1.getKeyCount());
+        Assert.assertEquals(hash0Key, r1.getHash());
 
 
     }

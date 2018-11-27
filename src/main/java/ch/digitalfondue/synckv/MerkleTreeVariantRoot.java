@@ -27,6 +27,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     MerkleTreeVariantRoot(byte depth, byte breadth) {
         this.children = new Node[breadth];
         this.depth = depth;
+        hash = computeHashFor(children);
     }
 
     List<ExportLeaf> exportLeafStructureOnly() {
