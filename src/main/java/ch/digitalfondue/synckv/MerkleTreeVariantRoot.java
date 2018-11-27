@@ -112,6 +112,20 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         }
     }
 
+    synchronized void remove(byte[] value) {
+        ByteBuffer wrapped = ByteBuffer.wrap(value);
+        int hashWrappedValue = MurmurHash.hash(wrapped);
+        int bucket = Math.abs(hashWrappedValue % children.length);
+
+        if (children[bucket] != null) {
+            boolean res = children[bucket].remove(wrapped, hashWrappedValue - bucket);
+            if (res) {
+                hash = computeHashFor(children);
+                keyCount.decrementAndGet();
+            }
+        }
+    }
+
     @Override
     public void updateHash() {
     }
@@ -176,6 +190,35 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             }
         }
 
+        public synchronized boolean remove(ByteBuffer wrapped, int resultingHash) {
+            if (depth == 0) {
+                if (content != null && content.remove(wrapped)) {
+
+                    if (content.isEmpty()) {
+                        hash = 0;
+                    } else {
+                        ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
+                        for (ByteBuffer bf : content) {
+                            hashes.putInt(MurmurHash.hash(bf));
+                        }
+                        hash = MurmurHash.hash(hashes);
+                    }
+
+                    if (parent != null) {
+                        parent.updateHash();
+                    }
+                    return true;
+                }
+            } else {
+                int bucket = Math.abs(resultingHash % children.length);
+                if (children[bucket] != null) {
+                    return children[bucket].remove(wrapped, resultingHash - bucket);
+                }
+            }
+
+            return false;
+        }
+
         private boolean selectBucket(ByteBuffer wrapped, int resultingHash) {
             if (children == null) {
                 this.children = new Node[breadth];
@@ -213,7 +256,12 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
         @Override
         public void updateHash() {
-            hash = computeHashFor(children);
+
+            if (valueCount() == 0) {
+                hash = 0;
+            } else {
+                hash = computeHashFor(children);
+            }
             if (parent != null) {
                 parent.updateHash();
             }
@@ -229,7 +277,23 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             parent.path(sb);
             sb.write(parent.position(this));
         }
-        
+
+        int valueCount() {
+            if (content != null) {
+                return content.size();
+            } else {
+
+                int cnt = 0;
+                if (children != null) {
+                    for (int i = 0; i < children.length; i++) {
+                        cnt += children[i] != null ? children[i].valueCount() : 0;
+                    }
+                }
+                return cnt;
+
+            }
+        }
+
         void export(List<ExportLeaf> export) {
             ByteArrayOutputStream sb = new ByteArrayOutputStream();
             path(sb);
