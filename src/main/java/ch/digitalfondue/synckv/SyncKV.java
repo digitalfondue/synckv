@@ -143,7 +143,7 @@ public class SyncKV implements AutoCloseable, Closeable {
                     new MPING(),
                     new MERGE3(),
                     new FD_SOCK(),
-                    new FD_ALL(),
+                    new FD_ALL2(),
                     new VERIFY_SUSPECT(),
                     new BARRIER()));
             if (password != null) {

@@ -1,7 +1,5 @@
 package ch.digitalfondue.synckv;
 
-import org.h2.mvstore.DataUtils;
-
 import java.io.*;
 import java.util.Iterator;
 import java.util.Map;
@@ -40,7 +38,33 @@ public class SyncKVStructuredTable<T> {
     }
 
     public Stream<Map.Entry<String, T>> stream() {
-        return table.keySet().stream().map(key -> new DataUtils.MapEntry(key, get(key)));
+        return table.keySet().stream().map(key -> new MapEntry(key, get(key)));
+    }
+
+    private static class MapEntry<T> implements Map.Entry<String, T> {
+
+        private String key;
+        private T value;
+
+        private MapEntry(String key, T value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        @Override
+        public String getKey() {
+            return key;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
+
+        @Override
+        public T setValue(T t) {
+            throw new IllegalStateException("cannot set value in entry");
+        }
     }
 
 

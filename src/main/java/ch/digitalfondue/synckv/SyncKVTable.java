@@ -20,7 +20,6 @@ public class SyncKVTable {
     private final RpcFacade rpcFacade;
     private final JChannel channel;
     private final MVMap<byte[], byte[]> table;
-    private final MVStore store;
 
     //currentTimeInMilli and nanoTime and random.nextInt
     private static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
@@ -34,7 +33,6 @@ public class SyncKVTable {
         this.table = store.openMap(tableName);
         this.syncTree = syncTree;
         this.disableSync = disableSync;
-        this.store = store;
     }
 
     public Set<String> keySet() {

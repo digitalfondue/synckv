@@ -1,3 +1,5 @@
+- as the implementation has been simplified: drop jgroups?
+    - in the end we need: multicast ping for auto discovery and a nio based server with encrypted packets communication
 - cleanup, documentation, tests, ... ?
 - clock skew detection
 - duplicate key insertion detection
