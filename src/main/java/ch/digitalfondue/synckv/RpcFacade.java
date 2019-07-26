@@ -4,6 +4,7 @@ import ch.digitalfondue.synckv.MerkleTreeVariantRoot.ExportLeaf;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.blocks.MethodCall;
+import org.jgroups.blocks.MethodInvoker;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.util.ByteArrayDataInputStream;
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
  * Internal use.
  * RPC facade for inter node communication.
  */
-public class RpcFacade {
+class RpcFacade implements MethodInvoker {
 
     private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
 
@@ -35,6 +36,26 @@ public class RpcFacade {
 
     void setRpcDispatcher(RpcDispatcher rpcDispatcher) {
         this.rpcDispatcher = rpcDispatcher;
+        this.rpcDispatcher.setMethodInvoker(this);
+    }
+
+    @Override
+    public Object invoke(Object target, short method_id, Object[] args) {
+        RpcFacade r = (RpcFacade) target;
+        switch (method_id) {
+            case HANDLE_PUT_REQUEST:
+                r.handlePutRequest((String) args[0], (String) args[1], (byte[]) args[2], (byte[]) args[3]);
+                break;
+            case HANDLE_GET_VALUE:
+                return r.handleGetValue((String) args[0], (String) args[1], (String) args[2]);
+            case HANDLE_GET_TABLE_METADATA_FOR_SYNC:
+                return r.handleGetTableMetadataForSync();
+            case HANDLE_GET_FULL_TABLE_DATA:
+                return r.handleGetFullTableData((String) args[0]);
+            case HANDLE_GET_PARTIAL_TABLE_DATA:
+                return r.handleGetPartialTableData((String) args[0], (List<ExportLeaf>) args[1]);
+        }
+        return null;
     }
 
     private Address getCurrentAddress() {
@@ -47,7 +68,8 @@ public class RpcFacade {
         broadcastToEverybodyElse(new MethodCall("handlePutRequest", new Object[]{addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, byte[].class, byte[].class}));
     }
 
-    public void handlePutRequest(String src, String table, byte[] key, byte[] value) {
+    private static final int HANDLE_PUT_REQUEST = 0;
+    void handlePutRequest(String src, String table, byte[] key, byte[] value) {
 
         Address source = fromBase64(src);
 
@@ -91,7 +113,8 @@ public class RpcFacade {
         return res;
     }
 
-    public KV handleGetValue(String src, String table, String key) {
+    private static final int HANDLE_GET_VALUE = 1;
+    KV handleGetValue(String src, String table, String key) {
         Address address = fromBase64(src);
         if (address.equals(getCurrentAddress())) {
             return null;
@@ -105,7 +128,8 @@ public class RpcFacade {
         return syncSend(address, new MethodCall("handleGetTableMetadataForSync", new Object[]{}, new Class[]{}));
     }
 
-    public Map<String, TableStats> handleGetTableMetadataForSync() {
+    private static final int HANDLE_GET_TABLE_METADATA_FOR_SYNC = 2;
+    Map<String, TableStats> handleGetTableMetadataForSync() {
         return syncKV.getTableMetadataForSync();
     }
 
@@ -115,7 +139,8 @@ public class RpcFacade {
         return syncSend(address, new MethodCall("handleGetFullTableData", new Object[]{tableName}, new Class[]{String.class}));
     }
 
-    public List<KV> handleGetFullTableData(String tableName) {
+    private static final int HANDLE_GET_FULL_TABLE_DATA = 3;
+    List<KV> handleGetFullTableData(String tableName) {
         return syncKV.getTable(tableName).exportRawData();
     }
 
@@ -128,7 +153,8 @@ public class RpcFacade {
     // difference, thus the bucket that need to be sent.
     //
     // Note: it's unidirectional, but due to the nature of the sync process, it will converge
-    public List<KV> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
+    private static final int HANDLE_GET_PARTIAL_TABLE_DATA = 4;
+    List<KV> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
         List<KV> res = new ArrayList<>();
         MerkleTreeVariantRoot tableTree = syncKV.getTableTree(tableName);
         SyncKVTable localTable = syncKV.getTable(tableName);
