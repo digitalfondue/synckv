@@ -3,7 +3,6 @@ package ch.digitalfondue.synckv;
 import org.h2.mvstore.MVStore;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
-import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.conf.ClassConfigurator;
 import org.jgroups.protocols.*;
 import org.jgroups.protocols.pbcast.GMS;
@@ -65,8 +64,6 @@ public class SyncKV implements AutoCloseable, Closeable {
             try {
                 channel.connect(channelName);
                 this.rpcFacade = new RpcFacade(this);
-                this.rpcFacade.setRpcDispatcher(new RpcDispatcher(channel, rpcFacade));
-
 
                 this.scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 

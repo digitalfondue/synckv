@@ -4,7 +4,6 @@ import ch.digitalfondue.synckv.MerkleTreeVariantRoot.ExportLeaf;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.blocks.MethodCall;
-import org.jgroups.blocks.MethodInvoker;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.util.ByteArrayDataInputStream;
@@ -23,37 +22,33 @@ import java.util.stream.Collectors;
  * Internal use.
  * RPC facade for inter node communication.
  */
-class RpcFacade implements MethodInvoker {
+class RpcFacade {
 
     private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
 
     private final SyncKV syncKV;
-    private RpcDispatcher rpcDispatcher;
+    private final RpcDispatcher rpcDispatcher;
 
     RpcFacade(SyncKV syncKV) {
         this.syncKV = syncKV;
+        this.rpcDispatcher = new RpcDispatcher(syncKV.getChannel(), this);
+        this.rpcDispatcher.setMethodInvoker(this::methodInvoker);
     }
 
-    void setRpcDispatcher(RpcDispatcher rpcDispatcher) {
-        this.rpcDispatcher = rpcDispatcher;
-        this.rpcDispatcher.setMethodInvoker(this);
-    }
-
-    @Override
-    public Object invoke(Object target, short method_id, Object[] args) {
-        RpcFacade r = (RpcFacade) target;
+    Object methodInvoker(Object target, short method_id, Object[] args) {
+        Object[] argumentsValue = (Object[]) args[0];
         switch (method_id) {
             case HANDLE_PUT_REQUEST:
-                r.handlePutRequest((String) args[0], (String) args[1], (byte[]) args[2], (byte[]) args[3]);
+                handlePutRequest((String) argumentsValue[0], (String) argumentsValue[1], (byte[]) argumentsValue[2], (byte[]) argumentsValue[3]);
                 break;
             case HANDLE_GET_VALUE:
-                return r.handleGetValue((String) args[0], (String) args[1], (String) args[2]);
+                return handleGetValue((String) argumentsValue[0], (String) argumentsValue[1], (String) argumentsValue[2]);
             case HANDLE_GET_TABLE_METADATA_FOR_SYNC:
-                return r.handleGetTableMetadataForSync();
+                return handleGetTableMetadataForSync();
             case HANDLE_GET_FULL_TABLE_DATA:
-                return r.handleGetFullTableData((String) args[0]);
+                return handleGetFullTableData((String) argumentsValue[0]);
             case HANDLE_GET_PARTIAL_TABLE_DATA:
-                return r.handleGetPartialTableData((String) args[0], (List<ExportLeaf>) args[1]);
+                return handleGetPartialTableData((String) argumentsValue[0], (List<ExportLeaf>) argumentsValue[1]);
         }
         return null;
     }
@@ -65,10 +60,10 @@ class RpcFacade implements MethodInvoker {
     // --- PUT ---------
 
     void putRequest(Address source, String table, byte[] key, byte[] value) {
-        broadcastToEverybodyElse(new MethodCall("handlePutRequest", new Object[]{addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, byte[].class, byte[].class}));
+        broadcastToEverybodyElse(new MethodCall(HANDLE_PUT_REQUEST, new Object[]{addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, byte[].class, byte[].class}));
     }
 
-    private static final int HANDLE_PUT_REQUEST = 0;
+    private static final short HANDLE_PUT_REQUEST = 0;
     void handlePutRequest(String src, String table, byte[] key, byte[] value) {
 
         Address source = fromBase64(src);
@@ -95,7 +90,7 @@ class RpcFacade implements MethodInvoker {
             return null;
         }
 
-        MethodCall call = new MethodCall("handleGetValue", new Object[]{addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
+        MethodCall call = new MethodCall(HANDLE_GET_VALUE, new Object[]{addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
         KV res = null;
         try {
             RspList<KV> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
@@ -113,7 +108,7 @@ class RpcFacade implements MethodInvoker {
         return res;
     }
 
-    private static final int HANDLE_GET_VALUE = 1;
+    private static final short HANDLE_GET_VALUE = 1;
     KV handleGetValue(String src, String table, String key) {
         Address address = fromBase64(src);
         if (address.equals(getCurrentAddress())) {
@@ -125,10 +120,10 @@ class RpcFacade implements MethodInvoker {
 
     // --- STEP 1 ------
     CompletableFuture<Map<String, TableStats>> getTableMetadataForSync(Address address) {
-        return syncSend(address, new MethodCall("handleGetTableMetadataForSync", new Object[]{}, new Class[]{}));
+        return syncSend(address, new MethodCall(HANDLE_GET_TABLE_METADATA_FOR_SYNC, new Object[]{}, new Class[]{}));
     }
 
-    private static final int HANDLE_GET_TABLE_METADATA_FOR_SYNC = 2;
+    private static final short HANDLE_GET_TABLE_METADATA_FOR_SYNC = 2;
     Map<String, TableStats> handleGetTableMetadataForSync() {
         return syncKV.getTableMetadataForSync();
     }
@@ -136,24 +131,24 @@ class RpcFacade implements MethodInvoker {
     // -----------------
     // -----------------
     CompletableFuture<List<KV>> getFullTableData(Address address, String tableName) {
-        return syncSend(address, new MethodCall("handleGetFullTableData", new Object[]{tableName}, new Class[]{String.class}));
+        return syncSend(address, new MethodCall(HANDLE_GET_FULL_TABLE_DATA, new Object[]{tableName}, new Class[]{String.class}));
     }
 
-    private static final int HANDLE_GET_FULL_TABLE_DATA = 3;
+    private static final short HANDLE_GET_FULL_TABLE_DATA = 3;
     List<KV> handleGetFullTableData(String tableName) {
         return syncKV.getTable(tableName).exportRawData();
     }
 
     // -----------------
     CompletableFuture<List<KV>> getPartialTableData(Address address, String tableName, List<ExportLeaf> exportLeaves) {
-        return syncSend(address, new MethodCall("handleGetPartialTableData", new Object[]{tableName, exportLeaves}, new Class[]{String.class, List.class}));
+        return syncSend(address, new MethodCall(HANDLE_GET_PARTIAL_TABLE_DATA, new Object[]{tableName, exportLeaves}, new Class[]{String.class, List.class}));
     }
 
     // We receive the leaf from the remote, if we remove them (the equals one) from our local tree, we have the
     // difference, thus the bucket that need to be sent.
     //
     // Note: it's unidirectional, but due to the nature of the sync process, it will converge
-    private static final int HANDLE_GET_PARTIAL_TABLE_DATA = 4;
+    private static final short HANDLE_GET_PARTIAL_TABLE_DATA = 4;
     List<KV> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
         List<KV> res = new ArrayList<>();
         MerkleTreeVariantRoot tableTree = syncKV.getTableTree(tableName);
