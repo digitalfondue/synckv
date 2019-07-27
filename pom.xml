@@ -48,21 +48,12 @@
         <dependency>
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups</artifactId>
-            <version>4.0.15.Final</version>
-            <!-- NOTE: jgroups version 4.0.16+ the MPING does not work
-
-org.jgroups.protocols.MPING sendMcastDiscoveryRequest
-SEVERE: JGRP000200: failed sending discovery request
-java.io.IOException: Invalid argument (sendto failed)
-	at java.net.PlainDatagramSocketImpl.send(Native Method)
-	at java.net.DatagramSocket.send(DatagramSocket.java:693)
-
-            -->
+            <version>4.1.1.Final</version>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2-mvstore</artifactId>
-            <version>1.4.198</version>
+            <version>1.4.199</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

@@ -27,6 +27,15 @@ public class MerkleTreeVariantRootTest {
 
         //resulting hash must be equal, as the tree has the exact same shape
         Assert.assertEquals(r1.getHash(), r2.getHash());
+        Assert.assertEquals(3, r1.getKeyCount());
+        Assert.assertEquals(3, r2.getKeyCount());
+
+
+        r1.delete(new byte[]{0, 1});
+        r2.delete(new byte[]{0, 1});
+        Assert.assertEquals(2, r1.getKeyCount());
+        Assert.assertEquals(2, r2.getKeyCount());
+        Assert.assertEquals(r1.getHash(), r2.getHash());
 
         //r1.exportLeafStructureOnly().forEach(System.err::println);
     }
@@ -55,7 +64,8 @@ public class MerkleTreeVariantRootTest {
         Assert.assertEquals(3, r1.getKeyCount());
 
 
-        r1.remove(new byte[]{125, 31, 1, 1});
+        Assert.assertFalse(r1.delete(new byte[]{42,42,42}));
+        Assert.assertTrue(r1.delete(new byte[]{125, 31, 1, 1}));
 
         //System.err.println("--------");
 
@@ -65,11 +75,11 @@ public class MerkleTreeVariantRootTest {
         Assert.assertEquals(hash2Key, r1.getHash());
 
 
-        r1.remove(new byte[] {1, 0});
+        r1.delete(new byte[] {1, 0});
         Assert.assertEquals(1, r1.getKeyCount());
         Assert.assertEquals(hash1Key, r1.getHash());
 
-        r1.remove(new byte[] {0, 1});
+        r1.delete(new byte[] {0, 1});
 
         Assert.assertEquals(0, r1.getKeyCount());
         Assert.assertEquals(hash0Key, r1.getHash());

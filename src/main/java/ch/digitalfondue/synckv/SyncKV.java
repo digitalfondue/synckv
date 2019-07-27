@@ -3,7 +3,6 @@ package ch.digitalfondue.synckv;
 import org.h2.mvstore.MVStore;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
-import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.conf.ClassConfigurator;
 import org.jgroups.protocols.*;
 import org.jgroups.protocols.pbcast.GMS;
@@ -65,8 +64,6 @@ public class SyncKV implements AutoCloseable, Closeable {
             try {
                 channel.connect(channelName);
                 this.rpcFacade = new RpcFacade(this);
-                this.rpcFacade.setRpcDispatcher(new RpcDispatcher(channel, rpcFacade));
-
 
                 this.scheduledExecutor = new ScheduledThreadPoolExecutor(1);
 
@@ -117,6 +114,10 @@ public class SyncKV implements AutoCloseable, Closeable {
         if (ClassConfigurator.getProtocolId(SymEncryptWithKeyFromMemory.class) == 0) {
             ClassConfigurator.addProtocol((short) 1024, SymEncryptWithKeyFromMemory.class);
         }
+
+        if (ClassConfigurator.getProtocolId(MPINGCustom.class) == 0) {
+            ClassConfigurator.addProtocol((short) 1025, MPINGCustom.class);
+        }
     }
 
     private static MerkleTreeVariantRoot buildTree() {
@@ -134,13 +135,19 @@ public class SyncKV implements AutoCloseable, Closeable {
     }
 
 
+    private static class MPINGCustom extends MPING {
+        MPINGCustom(boolean send_on_all_interfaces) {
+            this.send_on_all_interfaces = send_on_all_interfaces;
+        }
+    }
+
     // for programmatic configuration, imported from https://github.com/belaban/JGroups/blob/master/src/org/jgroups/demos/ProgrammaticChat.java
-    // switched to TCP_NIO2 and MPING, will need some tweak?
+    // switched to TCP_NIO2 and MPING, will need some tweak? -> edit: now reswitched to TCP, used custom mping as we need to send on all interfaces
     static protected JChannel buildChannel(String password) {
         try {
             List<Protocol> protocols = new ArrayList<>();
-            protocols.addAll(Arrays.asList(new TCP_NIO2(),
-                    new MPING(),
+            protocols.addAll(Arrays.asList(new TCP(),
+                    new MPINGCustom(true),
                     new MERGE3(),
                     new FD_SOCK(),
                     new FD_ALL2(),

@@ -1,6 +1,7 @@
 package ch.digitalfondue.synckv;
 
 import java.io.*;
+import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -38,33 +39,7 @@ public class SyncKVStructuredTable<T> {
     }
 
     public Stream<Map.Entry<String, T>> stream() {
-        return table.keySet().stream().map(key -> new MapEntry(key, get(key)));
-    }
-
-    private static class MapEntry<T> implements Map.Entry<String, T> {
-
-        private String key;
-        private T value;
-
-        private MapEntry(String key, T value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        @Override
-        public String getKey() {
-            return key;
-        }
-
-        @Override
-        public T getValue() {
-            return value;
-        }
-
-        @Override
-        public T setValue(T t) {
-            throw new IllegalStateException("cannot set value in entry");
-        }
+        return table.keySet().stream().map(key -> new AbstractMap.SimpleImmutableEntry<>(key, get(key)));
     }
 
 
