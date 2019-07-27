@@ -113,17 +113,19 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         }
     }
 
-    synchronized void remove(byte[] value) {
+
+    synchronized void delete(byte[] value) {
+
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
         int bucket = Math.abs(hashWrappedValue % children.length);
-
-        if (children[bucket] != null) {
-            boolean res = children[bucket].remove(wrapped, hashWrappedValue - bucket);
-            if (res) {
-                hash = computeHashFor(children);
-                keyCount.decrementAndGet();
-            }
+        if (children[bucket] == null) {
+            children[bucket] = new Node((byte) (depth - 1), (byte) children.length, this);
+        }
+        boolean res = children[bucket].delete(wrapped, hashWrappedValue - bucket);
+        if (res) {
+            hash = computeHashFor(children);
+            keyCount.decrementAndGet();
         }
     }
 
@@ -191,33 +193,13 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             }
         }
 
-        public synchronized boolean remove(ByteBuffer wrapped, int resultingHash) {
+
+        boolean delete(ByteBuffer wrapped, int resultingHash) {
             if (depth == 0) {
-                if (content != null && content.remove(wrapped)) {
-
-                    if (content.isEmpty()) {
-                        hash = 0;
-                    } else {
-                        ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
-                        for (ByteBuffer bf : content) {
-                            hashes.putInt(MurmurHash.hash(bf));
-                        }
-                        hash = MurmurHash.hash(hashes);
-                    }
-
-                    if (parent != null) {
-                        parent.updateHash();
-                    }
-                    return true;
-                }
+                return deleteValue(wrapped);
             } else {
-                int bucket = Math.abs(resultingHash % children.length);
-                if (children[bucket] != null) {
-                    return children[bucket].remove(wrapped, resultingHash - bucket);
-                }
+                return selectBucketDelete(wrapped, resultingHash);
             }
-
-            return false;
         }
 
         private boolean selectBucket(ByteBuffer wrapped, int resultingHash) {
@@ -234,6 +216,19 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             return children[bucket].add(wrapped, resultingHash - bucket);
         }
 
+        private boolean selectBucketDelete(ByteBuffer wrapped, int resultingHash) {
+            if (children == null) {
+                return false;
+            }
+
+            int bucket = Math.abs(resultingHash % children.length);
+            if (children[bucket] == null) {
+                return false;
+            }
+
+            return children[bucket].delete(wrapped, resultingHash - bucket);
+        }
+
         private synchronized boolean insertValue(ByteBuffer wrapped) {
             if (this.content == null) {
                 this.content = new ConcurrentSkipListSet<>();
@@ -243,14 +238,31 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
             if (res) {
                 //compute hash of content
-                ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
-                for (ByteBuffer bf : content) {
-                    hashes.putInt(MurmurHash.hash(bf));
-                }
-                hash = MurmurHash.hash(hashes);
-                if (parent != null) {
-                    parent.updateHash();
-                }
+                recomputeHash();
+            }
+            return res;
+        }
+
+        private void recomputeHash() {
+            ByteBuffer hashes = ByteBuffer.allocate(content.size() * Integer.BYTES);
+            for (ByteBuffer bf : content) {
+                hashes.putInt(MurmurHash.hash(bf));
+            }
+            hash = MurmurHash.hash(hashes);
+            if (parent != null) {
+                parent.updateHash();
+            }
+        }
+
+        private synchronized boolean deleteValue(ByteBuffer wrapped) {
+
+            if (this.content == null || !this.content.contains(wrapped)) {
+                return false;
+            }
+
+            boolean res = this.content.remove(wrapped);
+            if (res) {
+                recomputeHash();
             }
             return res;
         }
