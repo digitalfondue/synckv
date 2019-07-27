@@ -64,7 +64,8 @@ public class MerkleTreeVariantRootTest {
         Assert.assertEquals(3, r1.getKeyCount());
 
 
-        r1.delete(new byte[]{125, 31, 1, 1});
+        Assert.assertFalse(r1.delete(new byte[]{42,42,42}));
+        Assert.assertTrue(r1.delete(new byte[]{125, 31, 1, 1}));
 
         //System.err.println("--------");
 

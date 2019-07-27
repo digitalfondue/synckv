@@ -114,19 +114,19 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     }
 
 
-    synchronized void delete(byte[] value) {
-
+    synchronized boolean delete(byte[] value) {
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
         int bucket = Math.abs(hashWrappedValue % children.length);
         if (children[bucket] == null) {
-            children[bucket] = new Node((byte) (depth - 1), (byte) children.length, this);
+            return false;
         }
         boolean res = children[bucket].delete(wrapped, hashWrappedValue - bucket);
         if (res) {
             hash = computeHashFor(children);
             keyCount.decrementAndGet();
         }
+        return res;
     }
 
     @Override
