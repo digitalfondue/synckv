@@ -110,6 +110,10 @@ public class SyncKV implements AutoCloseable, Closeable {
         return new SyncKVTable(name, store, random, rpcFacade, channel, syncMap.get(name), disableSync);
     }
 
+    public Set<String> getTableNames() {
+        return store.getMapNames();
+    }
+
     public static void ensureProtocol() {
         if (ClassConfigurator.getProtocolId(SymEncryptWithKeyFromMemory.class) == 0) {
             ClassConfigurator.addProtocol((short) 1024, SymEncryptWithKeyFromMemory.class);

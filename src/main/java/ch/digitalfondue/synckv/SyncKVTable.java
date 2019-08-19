@@ -49,12 +49,21 @@ public class SyncKVTable {
                     String res = new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
                     DataInputStream dis = new DataInputStream(new ByteArrayInputStream(s, s.length - METADATA_LENGTH, s.length));
                     try {
-                        return res + "_" + dis.readLong() + "_" + dis.readInt();
+                        return res + "_" + dis.readLong() + "_" + dis.readLong() + "_" + dis.readInt();
                     } catch (IOException e) {
                         throw new IllegalStateException(e);
                     }
                 }).collect(Collectors.toCollection(TreeSet::new));
     }
+
+    List<Map.Entry<String, byte[]>> getKeysWithRawKey() {
+        return table.keySet().stream().map(s -> {
+            String res = new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+            return new AbstractMap.SimpleImmutableEntry<>(res, s);
+        }).collect(Collectors.toList());
+    }
+
+
 
     public int count() {
         return keySet().size();
@@ -91,6 +100,11 @@ public class SyncKVTable {
         addRawKV(finalKey, value);
 
         return true;
+    }
+
+    synchronized void deleteRawKV(byte[] key) {
+        syncTree.delete(key);
+        table.remove(key);
     }
 
     public boolean put(String key, String value) {
