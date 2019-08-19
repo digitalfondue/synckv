@@ -10,6 +10,7 @@ public class GCTest {
 
     @Test
     public void kvCleanupTest() {
+
         try (SyncKV kv = new SyncKV(null, null, null, null)) {
             SyncKVTable table = kv.getTable("test");
             table.put("test", "test");
