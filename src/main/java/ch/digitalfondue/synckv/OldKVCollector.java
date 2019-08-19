@@ -24,15 +24,13 @@ class OldKVCollector implements Runnable {
                 }
                 candidates.get(k.getKey()).add(k.getValue());
             });
-            List<byte[]> toRemove = new ArrayList<>();
             candidates.forEach((k, v) -> {
                 if (v.size() > 1) {
-                    toRemove.addAll(v.subList(0, v.size() - 1));
+                    v.subList(0, v.size() - 1).forEach(keyToBeRemoved -> {
+                        table.deleteRawKV(keyToBeRemoved);
+                    });
                 }
             });
-            for (byte[] k : toRemove) {
-                table.deleteRawKV(k);
-            }
         }
     }
 }

@@ -167,10 +167,22 @@ public class SyncKVTable {
     }
 
     synchronized void addRawKV(byte[] key, byte[] value) {
-        if (!table.containsKey(key)) {
+        if (!table.containsKey(key) && !containsNewerKey(key)) {
             syncTree.add(key);
             table.put(key, value);
         }
+    }
+
+    private boolean containsNewerKey(byte[] rawKey) {
+        //
+        Iterator<byte[]> n = table.keyIterator(rawKey);
+        if(n.hasNext()) {
+            byte[] nextKey = n.next();
+            int adjustedLength = rawKey.length - METADATA_LENGTH;
+            //
+            return nextKey.length == rawKey.length && ByteBuffer.wrap(rawKey, 0, adjustedLength).equals(ByteBuffer.wrap(nextKey, 0, adjustedLength));
+        }
+        return false;
     }
 
 
