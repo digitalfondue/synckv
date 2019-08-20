@@ -15,6 +15,10 @@ class OldKVCollector implements Runnable {
 
     @Override
     public void run() {
+        if (syncKV.disableCompacting.get()) {
+            return;
+        }
+
         for (String tableName : syncKV.getTableNames()) {
             SyncKVTable table = syncKV.getTable(tableName);
             Map<String, List<byte[]>> candidates = new HashMap<>();

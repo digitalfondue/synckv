@@ -36,6 +36,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
     private final ScheduledThreadPoolExecutor scheduledExecutor;
     final AtomicBoolean disableSync = new AtomicBoolean();
+    final AtomicBoolean disableCompacting = new AtomicBoolean();
     private final OldKVCollector oldKVCollector;
 
     /**

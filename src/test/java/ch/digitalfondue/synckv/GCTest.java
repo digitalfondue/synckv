@@ -13,6 +13,7 @@ public class GCTest {
 
         try (SyncKV kv = new SyncKV(null, null, null, null)) {
             SyncKVTable table = kv.getTable("test");
+            kv.disableCompacting.set(true);
             table.put("test", "test");
             Assert.assertEquals(1, table.keySet().size());
             Assert.assertEquals(1, table.rawKeySet().size());
@@ -26,6 +27,7 @@ public class GCTest {
 
             OldKVCollector oldKVCollector = new OldKVCollector(kv);
 
+            kv.disableCompacting.set(false);
             oldKVCollector.run();
 
 
