@@ -2,6 +2,8 @@ package ch.digitalfondue.synckv;
 
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
+import org.h2.mvstore.WriteBuffer;
+import org.h2.mvstore.type.DataType;
 import org.jgroups.JChannel;
 
 import java.io.ByteArrayInputStream;
@@ -24,13 +26,60 @@ public class SyncKVTable {
     //currentTimeInMilli and nanoTime and random.nextInt
     private static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
     private final AtomicBoolean disableSync;
+    private static final byte[] FLOOR_METADATA = new byte[METADATA_LENGTH]; //<- filled with -128
+
+    static {
+        Arrays.fill(FLOOR_METADATA, Byte.MIN_VALUE);
+    }
 
     SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, AtomicBoolean disableSync) {
         this.random = random;
         this.rpcFacade = rpcFacade;
         this.channel = channel;
-        this.table = store.openMap(tableName);
+
+        MVMap.Builder b = new MVMap.Builder<>();
+        b.setKeyType(new ByteArrayDataType());
+        b.setValueType(new ByteArrayDataType());
+        this.table = store.openMap(tableName, b);
         this.disableSync = disableSync;
+    }
+
+    private static class ByteArrayDataType implements DataType {
+
+        @Override
+        public int compare(Object a, Object b) {
+            return ByteBuffer.wrap((byte[]) a).compareTo(ByteBuffer.wrap((byte[]) b));
+        }
+
+        @Override
+        public int getMemory(Object obj) {
+            byte[] r = (byte[]) obj;
+            return 24 + r.length;
+        }
+
+        @Override
+        public void write(WriteBuffer buff, Object obj) {
+            buff.put((byte[]) obj);
+        }
+
+        @Override
+        public void write(WriteBuffer buff, Object[] obj, int len, boolean key) {
+            for (int i = 0; i < len; i++) {
+                write(buff, obj[i]);
+            }
+        }
+
+        @Override
+        public byte[] read(ByteBuffer buff) {
+            return buff.array();
+        }
+
+        @Override
+        public void read(ByteBuffer buff, Object[] obj, int len, boolean key) {
+            for (int i = 0; i < len; i++) {
+                obj[i] = read(buff);
+            }
+        }
     }
 
     public Set<String> keySet() {
@@ -47,12 +96,21 @@ public class SyncKVTable {
                     String res = new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
                     DataInputStream dis = new DataInputStream(new ByteArrayInputStream(s, s.length - METADATA_LENGTH, s.length));
                     try {
-                        return res + "_" + dis.readLong() + "_" + dis.readInt();
+                        return res + "_" + dis.readLong() + "_" + dis.readLong() + "_" + dis.readInt();
                     } catch (IOException e) {
                         throw new IllegalStateException(e);
                     }
                 }).collect(Collectors.toCollection(TreeSet::new));
     }
+
+    List<Map.Entry<String, byte[]>> getKeysWithRawKey() {
+        return table.keySet().stream().map(s -> {
+            String res = new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+            return new AbstractMap.SimpleImmutableEntry<>(res, s);
+        }).collect(Collectors.toList());
+    }
+
+
 
     public int count() {
         return keySet().size();
@@ -91,6 +149,10 @@ public class SyncKVTable {
         return true;
     }
 
+    synchronized void deleteRawKV(byte[] key) {
+        table.remove(key);
+    }
+
     public boolean put(String key, String value) {
         return put(key, value.getBytes(StandardCharsets.UTF_8));
     }
@@ -101,9 +163,21 @@ public class SyncKVTable {
     }
 
     synchronized void addRawKV(byte[] key, byte[] value) {
-        if (!table.containsKey(key)) {
+        if (!table.containsKey(key) && !containsNewerKey(key)) {
             table.put(key, value);
         }
+    }
+
+    private boolean containsNewerKey(byte[] rawKey) {
+        //
+        Iterator<byte[]> n = table.keyIterator(rawKey);
+        if(n.hasNext()) {
+            byte[] nextKey = n.next();
+            int adjustedLength = rawKey.length - METADATA_LENGTH;
+            //
+            return nextKey.length == rawKey.length && ByteBuffer.wrap(rawKey, 0, adjustedLength).equals(ByteBuffer.wrap(nextKey, 0, adjustedLength));
+        }
+        return false;
     }
 
 
@@ -121,7 +195,12 @@ public class SyncKVTable {
         int adjustedKeyLength = rawKey.length + METADATA_LENGTH;
         ByteBuffer keyBb = ByteBuffer.wrap(rawKey);
 
-        Iterator<byte[]> it = table.keyIterator(rawKey);
+        //start key
+        ByteBuffer startKey = ByteBuffer.allocate(adjustedKeyLength);
+        startKey.put(rawKey);
+        startKey.put(FLOOR_METADATA);
+
+        Iterator<byte[]> it = table.keyIterator(startKey.array());
 
         byte[] selectedKey = null;
 

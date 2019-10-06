@@ -35,6 +35,8 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final RpcFacade rpcFacade;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
     final AtomicBoolean disableSync = new AtomicBoolean();
+    final AtomicBoolean disableCompacting = new AtomicBoolean();
+    private final OldKVCollector oldKVCollector;
 
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
@@ -61,7 +63,7 @@ public class SyncKV implements AutoCloseable, Closeable {
                 channel.connect(channelName);
                 this.rpcFacade = new RpcFacade(this);
 
-                this.scheduledExecutor = new ScheduledThreadPoolExecutor(1);
+                this.scheduledExecutor = new ScheduledThreadPoolExecutor(2);
 
                 this.scheduledExecutor.scheduleAtFixedRate(new SynchronizationHandler(this, rpcFacade), 2, 10, TimeUnit.SECONDS);
 
@@ -70,8 +72,10 @@ public class SyncKV implements AutoCloseable, Closeable {
             }
         } else {
             this.rpcFacade = null;
-            this.scheduledExecutor = null;
+            this.scheduledExecutor = new ScheduledThreadPoolExecutor(1);
         }
+        this.oldKVCollector = new OldKVCollector(this);
+        this.scheduledExecutor.scheduleAtFixedRate(oldKVCollector, 2, 5, TimeUnit.MINUTES);
     }
 
     /**
@@ -101,6 +105,10 @@ public class SyncKV implements AutoCloseable, Closeable {
 
     public synchronized SyncKVTable getTable(String name) {
         return new SyncKVTable(name, store, random, rpcFacade, channel, disableSync);
+    }
+
+    public Set<String> getTableNames() {
+        return store.getMapNames();
     }
 
     public static void ensureProtocol() {
@@ -202,6 +210,7 @@ public class SyncKV implements AutoCloseable, Closeable {
 
     @Override
     public void close() {
+        oldKVCollector.run();
         store.close();
         if (channel != null) {
             channel.close();
