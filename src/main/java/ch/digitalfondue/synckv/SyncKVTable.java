@@ -22,6 +22,7 @@ public class SyncKVTable {
     private final RpcFacade rpcFacade;
     private final JChannel channel;
     private final MVMap<byte[], byte[]> table;
+    private final MVStore store;
 
     //currentTimeInMilli and nanoTime and random.nextInt
     private static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
@@ -41,6 +42,7 @@ public class SyncKVTable {
         b.setKeyType(new ByteArrayDataType());
         b.setValueType(new ByteArrayDataType());
         this.table = store.openMap(tableName, b);
+        this.store = store;
         this.disableSync = disableSync;
     }
 
@@ -48,7 +50,44 @@ public class SyncKVTable {
 
         @Override
         public int compare(Object a, Object b) {
-            return ByteBuffer.wrap((byte[]) a).compareTo(ByteBuffer.wrap((byte[]) b));
+            byte[] ba = (byte[]) a;
+            byte[] bb = (byte[]) b;
+
+            String keyA = new String(ba, 0, ba.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+            String keyB = new String(bb, 0, bb.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+
+            int comparison = keyA.compareTo(keyB);
+
+            if (comparison != 0) {
+                return comparison;
+            }
+
+
+            ByteBuffer metadataA = ByteBuffer.wrap(ba, ba.length - METADATA_LENGTH, METADATA_LENGTH);
+            ByteBuffer metadataB = ByteBuffer.wrap(bb, bb.length - METADATA_LENGTH, METADATA_LENGTH);
+
+            long timeInMilliA = metadataA.getLong();
+            long timeInMilliB = metadataB.getLong();
+
+            comparison = Long.compare(timeInMilliA, timeInMilliB);
+
+            if (comparison != 0) {
+                return comparison;
+            }
+
+            long nanoTimeA = metadataA.getLong();
+            long nanoTimeB = metadataB.getLong();
+
+            comparison = Long.compare(nanoTimeA, nanoTimeB);
+
+            if (comparison != 0) {
+                return comparison;
+            }
+
+            int rndA = metadataA.getInt();
+            int rndB = metadataB.getInt();
+            comparison = Integer.compare(rndA, rndB);
+            return comparison;
         }
 
         @Override
@@ -89,18 +128,21 @@ public class SyncKVTable {
                 .collect(Collectors.toCollection(TreeSet::new)); //keep the order and remove duplicate keys
     }
 
+    private static String formatRawKey(byte[] rawKey) {
+        String res = new String(rawKey, 0, rawKey.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+        DataInputStream dis = new DataInputStream(new ByteArrayInputStream(rawKey, rawKey.length - METADATA_LENGTH, METADATA_LENGTH));
+        try {
+            return res + "_" + dis.readLong() + "_" + dis.readLong() + "_" + dis.readInt();
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     Set<String> rawKeySet() {
         return table.keySet()
                 .stream()
-                .map(s -> {
-                    String res = new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
-                    DataInputStream dis = new DataInputStream(new ByteArrayInputStream(s, s.length - METADATA_LENGTH, s.length));
-                    try {
-                        return res + "_" + dis.readLong() + "_" + dis.readLong() + "_" + dis.readInt();
-                    } catch (IOException e) {
-                        throw new IllegalStateException(e);
-                    }
-                }).collect(Collectors.toCollection(TreeSet::new));
+                .map(SyncKVTable::formatRawKey)
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     List<Map.Entry<String, byte[]>> getKeysWithRawKey() {
@@ -140,17 +182,19 @@ public class SyncKVTable {
 
         byte[] finalKey = bf.array();
 
+        addRawKV(finalKey, value);
+        store.tryCommit();
+
         if (rpcFacade != null && !disableSync.get()) {
             rpcFacade.putRequest(channel.getAddress(), table.getName(), finalKey, value);
         }
-
-        addRawKV(finalKey, value);
 
         return true;
     }
 
     synchronized void deleteRawKV(byte[] key) {
         table.remove(key);
+        store.tryCommit();
     }
 
     public boolean put(String key, String value) {
@@ -174,7 +218,6 @@ public class SyncKVTable {
         if(n.hasNext()) {
             byte[] nextKey = n.next();
             int adjustedLength = rawKey.length - METADATA_LENGTH;
-            //
             return nextKey.length == rawKey.length && ByteBuffer.wrap(rawKey, 0, adjustedLength).equals(ByteBuffer.wrap(nextKey, 0, adjustedLength));
         }
         return false;

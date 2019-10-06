@@ -1,6 +1,8 @@
 package ch.digitalfondue.synckv;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -28,19 +30,33 @@ public class SyncKVTestGC {
 
         new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
 
+            long counterValue = counter.get();
             if (r.nextBoolean()) {
-                test.put("counter", "" + counter.get());
+                test.put("counter", "" + counterValue);
+                System.err.println("added in test value " + counterValue);
+                System.err.println("fetched value is " + test.getAsString("counter"));
             } else {
-                test2.put("counter", "" + counter.get());
+                test2.put("counter", "" + counterValue);
+                System.err.println("added in test2 value " + counterValue);
+                System.err.println("fetched value is " + test2.getAsString("counter"));
             }
+            System.err.println("counter value is " + counterValue);
+            System.err.println("members of the cluster: " + kv.getClusterMembersName());
+            System.err.println("keys in kv[attendees] " + kv.getClusterMemberName() + dumpTable(test));
+            System.err.println("keys in k2[attendees] " + kv2.getClusterMemberName() + dumpTable(test2));
+            System.err.println("Values of counters are: " + test.getAsString("counter") + ", " + test2.getAsString("counter"));
 
             counter.incrementAndGet();
 
-            System.err.println("members of the cluster: " + kv.getClusterMembersName());
-            System.err.println("keys in kv[attendees] " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("test").rawKeySet()));
-            System.err.println("keys in k2[attendees] " + kv2.getClusterMemberName() + new ArrayList<>(kv2.getTable("test").rawKeySet()));
-
 
         }, 20, 10, TimeUnit.SECONDS);
+    }
+
+    public static String dumpTable(SyncKVTable table) {
+        StringBuilder sb = new StringBuilder();
+        for(Map.Entry<String, byte[]> k : table.getKeysWithRawKey()) {
+            sb.append("{").append(k.getKey()).append(", ").append(new String(table.getRawKV(k.getValue()), StandardCharsets.UTF_8)).append("} ");
+        }
+        return sb.toString();
     }
 }
