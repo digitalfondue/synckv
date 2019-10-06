@@ -15,6 +15,7 @@ import org.jgroups.stack.Protocol;
 import java.io.Closeable;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,6 +38,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     final AtomicBoolean disableSync = new AtomicBoolean();
     final AtomicBoolean disableCompacting = new AtomicBoolean();
     private final OldKVCollector oldKVCollector;
+    private final Map<String, SyncKVTable> tables = new ConcurrentHashMap<>();
 
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
@@ -99,12 +101,43 @@ public class SyncKV implements AutoCloseable, Closeable {
         this(fileName, password, buildChannel(password), "syncKV");
     }
 
+    /**
+     * Disable/Enable the removal of old key/values.
+     *
+     * @param disableCompacting
+     */
+    public void disableCompacting(boolean disableCompacting) {
+        this.disableCompacting.set(disableCompacting);
+    }
+
+    /**
+     * Disable/Enable the synchronization.
+     *
+     * @param disableSync
+     */
+    public void disableSync(boolean disableSync) {
+        this.disableSync.set(disableSync);
+    }
+
+    public boolean isCompactingDisabled() {
+        return disableCompacting.get();
+    }
+
+    public boolean isSyncDisabled() {
+        return disableSync.get();
+    }
+
     public boolean hasTable(String name) {
         return store.hasMap(name);
     }
 
     public synchronized SyncKVTable getTable(String name) {
-        return new SyncKVTable(name, store, random, rpcFacade, channel, disableSync);
+        if (tables.containsKey(name)) {
+            return tables.get(name);
+        }
+        SyncKVTable kv = new SyncKVTable(name, store, random, rpcFacade, channel, disableSync);
+        tables.put(name, kv);
+        return kv;
     }
 
     public Set<String> getTableNames() {
@@ -121,11 +154,10 @@ public class SyncKV implements AutoCloseable, Closeable {
         }
     }
 
-    private MerkleTreeVariantRoot getMerkleTreeForMap(String name) {
+    MerkleTreeVariantRoot getMerkleTreeForMap(SyncKVTable table) {
         //3**7 = 2187 buckets
         MerkleTreeVariantRoot t = new MerkleTreeVariantRoot((byte) 3, (byte) 7);
-        MVMap<byte[], byte[]> map = store.openMap(name);
-        map.keySet().stream().forEach(t::add);
+        table.rawKeySet().stream().forEach(t::add);
         return t;
     }
 
@@ -195,7 +227,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     Map<String, TableStats> getTableMetadataForSync() {
         Map<String, TableStats> res = new HashMap<>();
         store.getMapNames().forEach(mapName -> {
-            MVMap<byte[], byte[]> map = store.openMap(mapName);
+            MVMap<byte[], byte[]> map = getTable(mapName).getTable();
             Set<byte[]> l = map.keySet();
             int hash = 0;
             int count = 0;
@@ -221,6 +253,6 @@ public class SyncKV implements AutoCloseable, Closeable {
     }
 
     MerkleTreeVariantRoot getTableTree(String table) {
-        return getMerkleTreeForMap(table);
+        return getMerkleTreeForMap(getTable(table));
     }
 }

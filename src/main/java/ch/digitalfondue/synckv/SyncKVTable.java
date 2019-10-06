@@ -39,22 +39,27 @@ public class SyncKVTable {
         this.channel = channel;
 
         MVMap.Builder b = new MVMap.Builder<>();
-        b.setKeyType(new ByteArrayDataType());
-        b.setValueType(new ByteArrayDataType());
+        b.setKeyType(new KeyByteArrayDataType());
+        b.setValueType(new ValueByteArrayDataType());
         this.table = store.openMap(tableName, b);
         this.store = store;
         this.disableSync = disableSync;
     }
 
-    private static class ByteArrayDataType implements DataType {
+    MVMap<byte[], byte[]> getTable() {
+        return table;
+    }
+
+    private static class KeyByteArrayDataType extends ValueByteArrayDataType {
 
         @Override
         public int compare(Object a, Object b) {
             byte[] ba = (byte[]) a;
             byte[] bb = (byte[]) b;
 
-            String keyA = new String(ba, 0, ba.length - METADATA_LENGTH, StandardCharsets.UTF_8);
-            String keyB = new String(bb, 0, bb.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+
+            ByteBuffer keyA = ByteBuffer.wrap(ba, 0, ba.length - METADATA_LENGTH);
+            ByteBuffer keyB = ByteBuffer.wrap(bb, 0, bb.length - METADATA_LENGTH);
 
             int comparison = keyA.compareTo(keyB);
 
@@ -89,6 +94,16 @@ public class SyncKVTable {
             comparison = Integer.compare(rndA, rndB);
             return comparison;
         }
+    }
+
+    private static class ValueByteArrayDataType implements DataType {
+
+        @Override
+        public int compare(Object a, Object b) {
+            byte[] ba = (byte[]) a;
+            byte[] bb = (byte[]) b;
+            return ByteBuffer.wrap(ba).compareTo(ByteBuffer.wrap(bb));
+        }
 
         @Override
         public int getMemory(Object obj) {
@@ -98,6 +113,8 @@ public class SyncKVTable {
 
         @Override
         public void write(WriteBuffer buff, Object obj) {
+            byte[] r = (byte[]) obj;
+            buff.putInt(r.length);
             buff.put((byte[]) obj);
         }
 
@@ -109,8 +126,11 @@ public class SyncKVTable {
         }
 
         @Override
-        public byte[] read(ByteBuffer buff) {
-            return buff.array();
+        public Object read(ByteBuffer buff) {
+            int toRead = buff.getInt();
+            byte[] r = new byte[toRead];
+            buff.get(r);
+            return r;
         }
 
         @Override
@@ -138,11 +158,15 @@ public class SyncKVTable {
         }
     }
 
-    Set<String> rawKeySet() {
+    Set<String> formattedRawKeySet() {
         return table.keySet()
                 .stream()
                 .map(SyncKVTable::formatRawKey)
                 .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    Set<byte[]> rawKeySet() {
+        return table.keySet();
     }
 
     List<Map.Entry<String, byte[]>> getKeysWithRawKey() {

@@ -1,5 +1,6 @@
 package ch.digitalfondue.synckv;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Random;
@@ -13,11 +14,15 @@ public class SyncKVTest {
 
     public static void main(String[] args) {
 
-        Logger rootLog = Logger.getLogger("");
-        rootLog.setLevel( Level.FINE );
-        rootLog.getHandlers()[0].setLevel( Level.FINE );
+        //Logger rootLog = Logger.getLogger("");
+        //rootLog.setLevel( Level.FINE );
+        //rootLog.getHandlers()[0].setLevel( Level.FINE );
 
-        SyncKV kv = new SyncKV(null, "SyncKV");
+        removeFile("s1");
+        removeFile("s2");
+        removeFile("s3");
+
+        SyncKV kv = new SyncKV("s1", "SyncKV");
         kv.disableSync.set(true);
         SyncKVTable table = kv.getTable("attendees");
 
@@ -25,7 +30,7 @@ public class SyncKVTest {
 
         AtomicInteger keyGenerator = new AtomicInteger();
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 10_000; i++) {
 
             String key = Integer.toString(keyGenerator.incrementAndGet());
             System.err.println("adding in kv with key " + key);
@@ -35,12 +40,13 @@ public class SyncKVTest {
         kv.getTable("anothertable").put("test", "value".getBytes(StandardCharsets.UTF_8));
 
 
-        SyncKV k2 = new SyncKV(null, "SyncKV");
+        SyncKV k2 = new SyncKV("s2", "SyncKV");
         k2.disableSync.set(true);
-        SyncKV k3 = new SyncKV(null, "SyncKV");
+
+        SyncKV k3 = new SyncKV("s3", "SyncKV");
         k3.disableSync.set(true);
 
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < 50_000; i++) {
             String key = Integer.toString(keyGenerator.incrementAndGet());
             boolean choice = r.nextBoolean();
             System.err.println("adding in k" + (choice ? "2" : "3") + " with key " + key);
@@ -56,16 +62,16 @@ public class SyncKVTest {
             new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
 
                 System.err.println("members of the cluster: " + kv.getClusterMembersName());
-                System.err.println("keys in kv[attendees] " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("attendees").rawKeySet()));
-                System.err.println("keys in k2[attendees] " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("attendees").rawKeySet()));
-                System.err.println("keys in k3[attendees] " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("attendees").rawKeySet()));
+                System.err.println("keys in kv[attendees] " + kv.getClusterMemberName() + " " + kv.getTable("attendees").count());
+                System.err.println("keys in k2[attendees] " + k2.getClusterMemberName() + " " + k2.getTable("attendees").count());
+                System.err.println("keys in k3[attendees] " + k3.getClusterMemberName() + " " + k3.getTable("attendees").count());
 
-                System.err.println("keys in kv[anothertable] " + kv.getClusterMemberName() + new ArrayList<>(kv.getTable("anothertable").rawKeySet()));
+                System.err.println("keys in kv[anothertable] " + kv.getClusterMemberName() + " " + kv.getTable("anothertable").count());
                 if (k2.hasTable("anothertable")) {
-                    System.err.println("keys in k2[anothertable] " + k2.getClusterMemberName() + new ArrayList<>(k2.getTable("anothertable").rawKeySet()));
+                    System.err.println("keys in k2[anothertable] " + k2.getClusterMemberName() + " " + k2.getTable("anothertable").count());
                 }
                 if (k3.hasTable("anothertable")) {
-                    System.err.println("keys in k3[anothertable] " + k3.getClusterMemberName() + new ArrayList<>(k3.getTable("anothertable").rawKeySet()));
+                    System.err.println("keys in k3[anothertable] " + k3.getClusterMemberName() + " " + k3.getTable("anothertable").count());
                 }
 
 
@@ -87,6 +93,13 @@ public class SyncKVTest {
 
 
             }, 20, 20, TimeUnit.SECONDS);
+        }
+    }
+
+    private static void removeFile(String name) {
+        File f = new File(name);
+        if (f.exists()) {
+            f.delete();
         }
     }
 }
