@@ -29,9 +29,15 @@ It has the following limitations:
  maven:
  
  ```xml
- <dependency>
+<dependency>
     <groupId>ch.digitalfondue.synckv</groupId>
     <artifactId>synckv</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
  ```
+
+gradle:
+
+```
+compile 'ch.digitalfondue.synckv:synckv:0.4.0'
+```
