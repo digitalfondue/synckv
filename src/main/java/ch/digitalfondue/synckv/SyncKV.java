@@ -1,5 +1,6 @@
 package ch.digitalfondue.synckv;
 
+import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
@@ -14,7 +15,6 @@ import org.jgroups.stack.Protocol;
 import java.io.Closeable;
 import java.security.SecureRandom;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,7 +33,6 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final JChannel channel;
     private final MVStore store;
     private final RpcFacade rpcFacade;
-    private final Map<String, MerkleTreeVariantRoot> syncMap = new ConcurrentHashMap<>();
     private final ScheduledThreadPoolExecutor scheduledExecutor;
     final AtomicBoolean disableSync = new AtomicBoolean();
 
@@ -56,9 +55,6 @@ public class SyncKV implements AutoCloseable, Closeable {
         this.random = new SecureRandom();
 
         this.store = builder.open();
-
-        ensureSyncMap();
-
 
         if (channel != null) {
             try {
@@ -104,10 +100,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     }
 
     public synchronized SyncKVTable getTable(String name) {
-        if (!syncMap.containsKey(name)) {
-            syncMap.put(name, buildTree());
-        }
-        return new SyncKVTable(name, store, random, rpcFacade, channel, syncMap.get(name), disableSync);
+        return new SyncKVTable(name, store, random, rpcFacade, channel, disableSync);
     }
 
     public static void ensureProtocol() {
@@ -120,20 +113,13 @@ public class SyncKV implements AutoCloseable, Closeable {
         }
     }
 
-    private static MerkleTreeVariantRoot buildTree() {
+    private MerkleTreeVariantRoot getMerkleTreeForMap(String name) {
         //3**7 = 2187 buckets
-        return new MerkleTreeVariantRoot((byte) 3, (byte) 7);
+        MerkleTreeVariantRoot t = new MerkleTreeVariantRoot((byte) 3, (byte) 7);
+        MVMap<byte[], byte[]> map = store.openMap(name);
+        map.keySet().stream().forEach(t::add);
+        return t;
     }
-
-    private void ensureSyncMap() {
-        for (String name : store.getMapNames()) {
-            MerkleTreeVariantRoot tree = buildTree();
-            syncMap.put(name, tree);
-            Map<byte[], byte[]> map = store.openMap(name);
-            map.keySet().stream().forEach(tree::add);
-        }
-    }
-
 
     private static class MPINGCustom extends MPING {
         MPINGCustom(boolean send_on_all_interfaces) {
@@ -200,9 +186,16 @@ public class SyncKV implements AutoCloseable, Closeable {
 
     Map<String, TableStats> getTableMetadataForSync() {
         Map<String, TableStats> res = new HashMap<>();
-
-        syncMap.forEach((k, v) -> {
-            res.put(k, new TableStats(v.getKeyCount(), v.getHash()));
+        store.getMapNames().forEach(mapName -> {
+            MVMap<byte[], byte[]> map = store.openMap(mapName);
+            Set<byte[]> l = map.keySet();
+            int hash = 0;
+            int count = 0;
+            for (byte[] k : l) {
+                count++;
+                hash = MurmurHash.hash(k, hash);
+            }
+            res.put(mapName, new TableStats(count, hash));
         });
         return res;
     }
@@ -216,10 +209,9 @@ public class SyncKV implements AutoCloseable, Closeable {
         if (scheduledExecutor != null) {
             scheduledExecutor.shutdown();
         }
-
     }
 
     MerkleTreeVariantRoot getTableTree(String table) {
-        return syncMap.get(table);
+        return getMerkleTreeForMap(table);
     }
 }

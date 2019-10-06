@@ -6,6 +6,7 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.List;
 
 public class MerkleTreeVariantRootTest {
 
@@ -30,12 +31,26 @@ public class MerkleTreeVariantRootTest {
         Assert.assertEquals(3, r1.getKeyCount());
         Assert.assertEquals(3, r2.getKeyCount());
 
+        List<MerkleTreeVariantRoot.ExportLeaf> el1 = r1.exportLeafStructureOnly();
+        List<MerkleTreeVariantRoot.ExportLeaf> el2 = r2.exportLeafStructureOnly();
+        Assert.assertEquals(el1.size(), el2.size());
+        Assert.assertEquals(2, el1.size());
+        Assert.assertEquals(el1.get(0), el2.get(0));
+        Assert.assertEquals(el1.get(1), el2.get(1));
+
 
         r1.delete(new byte[]{0, 1});
         r2.delete(new byte[]{0, 1});
         Assert.assertEquals(2, r1.getKeyCount());
         Assert.assertEquals(2, r2.getKeyCount());
         Assert.assertEquals(r1.getHash(), r2.getHash());
+
+        el1 = r1.exportLeafStructureOnly();
+        el2 = r2.exportLeafStructureOnly();
+        Assert.assertEquals(el1.size(), el2.size());
+        Assert.assertEquals(2, el1.size());
+        Assert.assertEquals(el1.get(0), el2.get(0));
+        Assert.assertEquals(el1.get(1), el2.get(1));
 
         //r1.exportLeafStructureOnly().forEach(System.err::println);
     }

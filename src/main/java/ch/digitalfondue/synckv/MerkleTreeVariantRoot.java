@@ -4,8 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Inspired by https://bitcoin.stackexchange.com/questions/51423/how-do-you-create-a-merkle-tree-that-lets-you-insert-and-delete-elements-without/52811#52811 .
@@ -20,14 +18,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
 
     private final Node[] children;
-    private volatile int hash;
     private final byte depth;
-    private final AtomicInteger keyCount = new AtomicInteger();
+    private int keyCount = 0;
 
     MerkleTreeVariantRoot(byte depth, byte breadth) {
         this.children = new Node[breadth];
         this.depth = depth;
-        hash = computeHashFor(children);
     }
 
     List<ExportLeaf> exportLeafStructureOnly() {
@@ -95,7 +91,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         return sb.toString();
     }
 
-    synchronized void add(byte[] value) {
+    void add(byte[] value) {
 
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
@@ -108,13 +104,12 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         boolean res = children[bucket].add(wrapped, hashWrappedValue - bucket);
 
         if (res) {
-            hash = computeHashFor(children);
-            keyCount.incrementAndGet();
+            keyCount += 1;
         }
     }
 
 
-    synchronized boolean delete(byte[] value) {
+    boolean delete(byte[] value) {
         ByteBuffer wrapped = ByteBuffer.wrap(value);
         int hashWrappedValue = MurmurHash.hash(wrapped);
         int bucket = Math.abs(hashWrappedValue % children.length);
@@ -123,8 +118,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
         }
         boolean res = children[bucket].delete(wrapped, hashWrappedValue - bucket);
         if (res) {
-            hash = computeHashFor(children);
-            keyCount.decrementAndGet();
+            keyCount -= 1;
         }
         return res;
     }
@@ -143,7 +137,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     }
 
     int getHash() {
-        return hash;
+        return computeHashFor(children);
     }
 
     private static byte position(Node[] children, NodeWithUpdateHashAndChildPosition node) {
@@ -167,14 +161,14 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
     }
 
     int getKeyCount() {
-        return keyCount.get();
+        return keyCount;
     }
 
 
     private static class Node implements NodeWithUpdateHashAndChildPosition {
         private Node[] children;
         private SortedSet<ByteBuffer> content;
-        private volatile int hash;
+        private int hash;
         private final byte depth;
         private final byte breadth;
         private NodeWithUpdateHashAndChildPosition parent;
@@ -229,9 +223,9 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             return children[bucket].delete(wrapped, resultingHash - bucket);
         }
 
-        private synchronized boolean insertValue(ByteBuffer wrapped) {
+        private boolean insertValue(ByteBuffer wrapped) {
             if (this.content == null) {
-                this.content = new ConcurrentSkipListSet<>();
+                this.content = new TreeSet<>();
             }
 
             boolean res = content.add(wrapped);
@@ -254,7 +248,7 @@ class MerkleTreeVariantRoot implements NodeWithUpdateHashAndChildPosition {
             }
         }
 
-        private synchronized boolean deleteValue(ByteBuffer wrapped) {
+        private boolean deleteValue(ByteBuffer wrapped) {
 
             if (this.content == null || !this.content.contains(wrapped)) {
                 return false;

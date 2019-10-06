@@ -23,15 +23,13 @@ public class SyncKVTable {
 
     //currentTimeInMilli and nanoTime and random.nextInt
     private static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
-    private final MerkleTreeVariantRoot syncTree;
     private final AtomicBoolean disableSync;
 
-    SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, MerkleTreeVariantRoot syncTree, AtomicBoolean disableSync) {
+    SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, AtomicBoolean disableSync) {
         this.random = random;
         this.rpcFacade = rpcFacade;
         this.channel = channel;
         this.table = store.openMap(tableName);
-        this.syncTree = syncTree;
         this.disableSync = disableSync;
     }
 
@@ -104,7 +102,6 @@ public class SyncKVTable {
 
     synchronized void addRawKV(byte[] key, byte[] value) {
         if (!table.containsKey(key)) {
-            syncTree.add(key);
             table.put(key, value);
         }
     }

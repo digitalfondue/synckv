@@ -41,7 +41,7 @@ class MurmurHash {
     }
 
 
-    private static int hash(byte[] bytes, int initval) {
+    static int hash(byte[] bytes, int initval) {
         return hash(bytes, bytes.length, initval);
     }
 
