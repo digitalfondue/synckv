@@ -28,7 +28,7 @@ class SynchronizationHandler implements Runnable {
     @Override
     public void run() {
 
-        if (syncKV.disableSync.get()) {
+        if (syncKV.isSyncDisabled()) {
             return;
         }
 

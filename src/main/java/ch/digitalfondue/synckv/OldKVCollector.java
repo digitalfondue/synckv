@@ -15,7 +15,7 @@ class OldKVCollector implements Runnable {
 
     @Override
     public void run() {
-        if (syncKV.disableCompacting.get()) {
+        if (syncKV.isCompactingDisabled()) {
             return;
         }
 
