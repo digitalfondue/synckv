@@ -23,7 +23,7 @@ public class SyncKVTest {
         removeFile("s3");
 
         SyncKV kv = new SyncKV("s1", "SyncKV");
-        kv.disableSync.set(true);
+        kv.disableSync(true);
         SyncKVTable table = kv.getTable("attendees");
 
         Random r = new Random();
@@ -41,10 +41,10 @@ public class SyncKVTest {
 
 
         SyncKV k2 = new SyncKV("s2", "SyncKV");
-        k2.disableSync.set(true);
+        k2.disableSync(true);
 
         SyncKV k3 = new SyncKV("s3", "SyncKV");
-        k3.disableSync.set(true);
+        k3.disableSync(true);
 
         for (int i = 0; i < 50_000; i++) {
             String key = Integer.toString(keyGenerator.incrementAndGet());
@@ -53,9 +53,9 @@ public class SyncKVTest {
             (choice ? k2 : k3).getTable("attendees").put(key, ("hello world " + i).getBytes(StandardCharsets.UTF_8));
         }
 
-        kv.disableSync.set(false);
-        k2.disableSync.set(false);
-        k3.disableSync.set(false);
+        kv.disableSync(false);
+        k2.disableSync(false);
+        k3.disableSync(false);
 
 
         if (true) {

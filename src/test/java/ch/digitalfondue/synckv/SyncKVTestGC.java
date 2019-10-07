@@ -1,7 +1,6 @@
 package ch.digitalfondue.synckv;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ScheduledThreadPoolExecutor;

@@ -14,7 +14,7 @@ public class Launch2 {
             f.delete();
         }
         SyncKV k2 = new SyncKV("launch2", "SyncKV");
-        k2.disableSync.set(true);
+        k2.disableSync(true);
 
         AtomicInteger keyGenerator = new AtomicInteger();
 
@@ -23,7 +23,7 @@ public class Launch2 {
             k2.getTable("attendees").put(key, ("hello world " + i).getBytes(StandardCharsets.UTF_8));
         }
 
-        k2.disableSync.set(false);
+        k2.disableSync(false);
 
         if (true) {
             new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {

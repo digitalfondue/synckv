@@ -35,8 +35,8 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final MVStore store;
     private final RpcFacade rpcFacade;
     private final ScheduledThreadPoolExecutor scheduledExecutor;
-    final AtomicBoolean disableSync = new AtomicBoolean();
-    final AtomicBoolean disableCompacting = new AtomicBoolean();
+    private final AtomicBoolean disableSync = new AtomicBoolean();
+    private final AtomicBoolean disableCompacting = new AtomicBoolean();
     private final OldKVCollector oldKVCollector;
     private final Map<String, SyncKVTable> tables = new ConcurrentHashMap<>();
 

@@ -15,7 +15,7 @@ public class Launch1 {
         }
         SyncKV kv = new SyncKV("launch1", "SyncKV");
 
-        kv.disableSync.set(true);
+        kv.disableSync(true);
         SyncKVTable table = kv.getTable("attendees");
 
         AtomicInteger keyGenerator = new AtomicInteger();
@@ -29,7 +29,7 @@ public class Launch1 {
 
         kv.getTable("anothertable").put("test", "value".getBytes(StandardCharsets.UTF_8));
 
-        kv.disableSync.set(false);
+        kv.disableSync(false);
 
         if (true) {
             new ScheduledThreadPoolExecutor(1).scheduleAtFixedRate(() -> {
