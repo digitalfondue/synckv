@@ -44,14 +44,20 @@ public class StructuredTableTest {
             attendeeTable.put("test2", new Attendee("2f", "2l", "2@"));
             Assert.assertEquals(2, attendeeTable.count());
 
+            Assert.assertEquals("2f", attendeeTable.get("test2").firstname);
+
             attendeeTable.put("test2", new Attendee("2ff", "2ll", "2@@"));
             Assert.assertEquals(2, attendeeTable.count());
+
+            Assert.assertEquals("2ff", attendeeTable.get("test2").firstname);
 
 
             Attendee a = attendeeTable.stream().filter(e -> e.getValue().lastname.equals("1l")).map(Map.Entry::getValue).findFirst().orElseThrow(IllegalStateException::new);
             Assert.assertEquals("1f", a.firstname);
             Assert.assertEquals("1l", a.lastname);
             Assert.assertEquals("1@", a.email);
+
+
         }
     }
 }

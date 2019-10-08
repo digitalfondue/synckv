@@ -50,6 +50,44 @@ public class SyncKVTable {
         return table;
     }
 
+    static int compareKey(byte[] ba, byte[] bb) {
+        ByteBuffer keyA = ByteBuffer.wrap(ba, 0, ba.length - METADATA_LENGTH);
+        ByteBuffer keyB = ByteBuffer.wrap(bb, 0, bb.length - METADATA_LENGTH);
+
+        int comparison = keyA.compareTo(keyB);
+
+        if (comparison != 0) {
+            return comparison;
+        }
+
+
+        ByteBuffer metadataA = ByteBuffer.wrap(ba, ba.length - METADATA_LENGTH, METADATA_LENGTH);
+        ByteBuffer metadataB = ByteBuffer.wrap(bb, bb.length - METADATA_LENGTH, METADATA_LENGTH);
+
+        long timeInMilliA = metadataA.getLong();
+        long timeInMilliB = metadataB.getLong();
+
+        comparison = Long.compare(timeInMilliA, timeInMilliB);
+
+        if (comparison != 0) {
+            return comparison;
+        }
+
+        long nanoTimeA = metadataA.getLong();
+        long nanoTimeB = metadataB.getLong();
+
+        comparison = Long.compare(nanoTimeA, nanoTimeB);
+
+        if (comparison != 0) {
+            return comparison;
+        }
+
+        int rndA = metadataA.getInt();
+        int rndB = metadataB.getInt();
+        comparison = Integer.compare(rndA, rndB);
+        return comparison;
+    }
+
     private static class KeyByteArrayDataType extends ValueByteArrayDataType {
 
         @Override
@@ -57,42 +95,7 @@ public class SyncKVTable {
             byte[] ba = (byte[]) a;
             byte[] bb = (byte[]) b;
 
-
-            ByteBuffer keyA = ByteBuffer.wrap(ba, 0, ba.length - METADATA_LENGTH);
-            ByteBuffer keyB = ByteBuffer.wrap(bb, 0, bb.length - METADATA_LENGTH);
-
-            int comparison = keyA.compareTo(keyB);
-
-            if (comparison != 0) {
-                return comparison;
-            }
-
-
-            ByteBuffer metadataA = ByteBuffer.wrap(ba, ba.length - METADATA_LENGTH, METADATA_LENGTH);
-            ByteBuffer metadataB = ByteBuffer.wrap(bb, bb.length - METADATA_LENGTH, METADATA_LENGTH);
-
-            long timeInMilliA = metadataA.getLong();
-            long timeInMilliB = metadataB.getLong();
-
-            comparison = Long.compare(timeInMilliA, timeInMilliB);
-
-            if (comparison != 0) {
-                return comparison;
-            }
-
-            long nanoTimeA = metadataA.getLong();
-            long nanoTimeB = metadataB.getLong();
-
-            comparison = Long.compare(nanoTimeA, nanoTimeB);
-
-            if (comparison != 0) {
-                return comparison;
-            }
-
-            int rndA = metadataA.getInt();
-            int rndB = metadataB.getInt();
-            comparison = Integer.compare(rndA, rndB);
-            return comparison;
+            return compareKey(ba, bb);
         }
     }
 

@@ -80,7 +80,7 @@ class RpcFacade {
 
     // --- GET ---------
 
-    private static final Comparator<KV> DESC_METADATA_ORDER = Comparator.<KV, ByteBuffer>comparing(payload -> ByteBuffer.wrap(payload.k)).reversed();
+    private static final Comparator<KV> DESC_METADATA_ORDER = (kv1, kv2) -> SyncKVTable.compareKey(kv1.k, kv2.k);
 
     KV getValue(Address src, String table, String key) {
         JChannel channel = syncKV.getChannel();
@@ -99,7 +99,7 @@ class RpcFacade {
             res = rsps.getResults()
                     .stream()
                     .filter(payload -> payload != null && payload.k != null)
-                    .sorted(DESC_METADATA_ORDER)
+                    .sorted(DESC_METADATA_ORDER.reversed())
                     .findFirst()
                     .orElse(null);
         } catch (Exception e) {
