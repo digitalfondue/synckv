@@ -1,6 +1,5 @@
 package ch.digitalfondue.synckv;
 
-import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
@@ -226,16 +225,9 @@ public class SyncKV implements AutoCloseable, Closeable {
 
     Map<String, TableStats> getTableMetadataForSync() {
         Map<String, TableStats> res = new HashMap<>();
-        store.getMapNames().forEach(mapName -> {
-            MVMap<byte[], byte[]> map = getTable(mapName).getTable();
-            Set<byte[]> l = map.keySet();
-            int hash = 0;
-            int count = 0;
-            for (byte[] k : l) {
-                count++;
-                hash = MurmurHash.hash(k, hash);
-            }
-            res.put(mapName, new TableStats(count, hash));
+        tables.forEach((mapName, table) -> {
+            TableStats stats = table.getTableStats();
+            res.put(mapName, stats);
         });
         return res;
     }

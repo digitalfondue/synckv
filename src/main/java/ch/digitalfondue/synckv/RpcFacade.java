@@ -11,7 +11,6 @@ import org.jgroups.util.ByteArrayDataOutputStream;
 import org.jgroups.util.RspList;
 import org.jgroups.util.Util;
 
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;

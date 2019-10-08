@@ -14,15 +14,22 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class SyncKVTable {
 
+    private final static Logger LOGGER = Logger.getLogger(SyncKVTable.class.getName());
+
+    private final String tableName;
     private final SecureRandom random;
     private final RpcFacade rpcFacade;
     private final JChannel channel;
     private final MVMap<byte[], byte[]> table;
     private final MVStore store;
+    private final AtomicReference<TableStats> tableStats = new AtomicReference<>();
 
     //currentTimeInMilli and nanoTime and random.nextInt
     private static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
@@ -34,6 +41,7 @@ public class SyncKVTable {
     }
 
     SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, AtomicBoolean disableSync) {
+        this.tableName = tableName;
         this.random = random;
         this.rpcFacade = rpcFacade;
         this.channel = channel;
@@ -44,10 +52,6 @@ public class SyncKVTable {
         this.table = store.openMap(tableName, b);
         this.store = store;
         this.disableSync = disableSync;
-    }
-
-    MVMap<byte[], byte[]> getTable() {
-        return table;
     }
 
     static int compareKey(byte[] ba, byte[] bb) {
@@ -220,6 +224,7 @@ public class SyncKVTable {
     }
 
     synchronized void deleteRawKV(byte[] key) {
+        tableStats.set(null);
         table.remove(key);
         store.tryCommit();
     }
@@ -235,6 +240,7 @@ public class SyncKVTable {
 
     synchronized void addRawKV(byte[] key, byte[] value) {
         if (!table.containsKey(key) && !containsNewerKey(key)) {
+            tableStats.set(null);
             table.put(key, value);
         }
     }
@@ -293,6 +299,7 @@ public class SyncKVTable {
             //add value if it's missing
             if (remote != null && remote.k != null) {
                 addRawKV(remote.k, remote.v);
+                store.tryCommit();
             }
             //
             return remote;
@@ -313,9 +320,32 @@ public class SyncKVTable {
         for (KV kv : tablePayload) {
             addRawKV(kv.k, kv.v);
         }
+        store.tryCommit();
     }
 
     public <T> SyncKVStructuredTable<T> toStructured(Class<T> clazz, SyncKVStructuredTable.DataConverterFrom<T> from, SyncKVStructuredTable.DataConverterTo<T> to) {
         return new SyncKVStructuredTable<>(this, from, to);
+    }
+
+    TableStats getTableStats() {
+        TableStats t = tableStats.get();
+        if (t != null) {
+            LOGGER.log(Level.FINE, () -> "for table stats of " + tableName + " hitting cache");
+            return t;
+        }
+
+        LOGGER.log(Level.FINE, () -> "for table stats of " + tableName + " must be recomputed!");
+
+        Set<byte[]> l = table.keySet();
+        int hash = 0;
+        int count = 0;
+        for (byte[] k : l) {
+            count++;
+            hash = MurmurHash.hash(k, hash);
+        }
+
+        t = new TableStats(count, hash);
+        tableStats.set(t);
+        return t;
     }
 }
