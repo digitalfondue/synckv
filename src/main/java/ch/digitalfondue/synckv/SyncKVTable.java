@@ -209,10 +209,6 @@ public class SyncKVTable {
                 return rawKeyToString(key);
             }
         };
-
-
-        //TODO: implement a more lazy version with a custom iterator
-        //return keySet().iterator();
     }
 
     // the key are structured as:
