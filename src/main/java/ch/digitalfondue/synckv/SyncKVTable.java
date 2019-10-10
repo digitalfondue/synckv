@@ -164,14 +164,6 @@ public class SyncKVTable {
         }
     }
 
-    @Deprecated
-    private Set<String> keySet() {
-        return rawKeySet()
-                .stream()
-                .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8)) //trim away the metadata
-                .collect(Collectors.toCollection(TreeSet::new)); //keep the order and remove duplicate keys
-    }
-
     Set<byte[]> rawKeySet() {
         return table.keySet();
     }
@@ -186,9 +178,41 @@ public class SyncKVTable {
         return count;
     }
 
+    private static String rawKeyToString(byte[] s) {
+        return new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
+    }
+
     public Iterator<String> keys() {
+        PushbackIterator<byte[]> bi = new PushbackIterator<>(table.keySet().iterator());
+
+        return new Iterator<String>() {
+
+            @Override
+            public boolean hasNext() {
+                return bi.hasNext();
+            }
+
+            @Override
+            public String next() {
+                byte[] key = bi.next();
+                if (bi.hasNext()) {
+                    byte[] nextKey;
+                    do {
+                        nextKey = bi.next();
+                        if (!sameKeyIgnoringMetadata(key, nextKey)) {
+                            bi.pushback(nextKey);
+                            break;
+                        }
+                        key = nextKey;
+                    } while(bi.hasNext());
+                }
+                return rawKeyToString(key);
+            }
+        };
+
+
         //TODO: implement a more lazy version with a custom iterator
-        return keySet().iterator();
+        //return keySet().iterator();
     }
 
     // the key are structured as:
