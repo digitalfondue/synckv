@@ -10,6 +10,7 @@ public class GCTest {
 
         try (SyncKV kv = new SyncKV(null, null, null, null)) {
             SyncKVTable table = kv.getTable("test");
+            Assert.assertEquals(0, table.count());
             kv.disableCompacting(true);
             table.put("test", "test");
             Assert.assertEquals(1, table.count());

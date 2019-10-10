@@ -177,7 +177,13 @@ public class SyncKVTable {
     }
 
     public int count() {
-        return keySet().size();
+        int count = 0;
+        Iterator<String> keys = keys();
+        while(keys.hasNext()) {
+            keys.next();
+            count++;
+        }
+        return count;
     }
 
     public Iterator<String> keys() {
