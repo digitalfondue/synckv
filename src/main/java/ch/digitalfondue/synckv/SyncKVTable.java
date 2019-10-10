@@ -14,7 +14,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 public class SyncKVTable {
 
@@ -183,7 +182,7 @@ public class SyncKVTable {
     }
 
     public Iterator<String> keys() {
-        PushbackIterator<byte[]> bi = new PushbackIterator<>(table.keySet().iterator());
+        PushbackIterator<byte[]> bi = new PushbackIterator<>(table.keyIterator(null));
 
         return new Iterator<String>() {
 
@@ -331,7 +330,11 @@ public class SyncKVTable {
     }
 
     List<KV> exportRawData() {
-        return table.keySet().stream().map(key -> new KV(key, table.get(key))).collect(Collectors.toList());
+        List<KV> res = new ArrayList<>();
+        for (byte[] key : table.keySet()) {
+            res.add(new KV(key, table.get(key)));
+        }
+        return res;
     }
 
     void importRawData(List<KV> tablePayload) {
