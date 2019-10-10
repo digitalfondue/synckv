@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class SyncKVStructuredTable<T> {
 
@@ -26,10 +27,6 @@ public class SyncKVStructuredTable<T> {
         table.put(key, value == null ? null : dataConverter.to(value));
     }
 
-    public Set<String> keySet() {
-        return table.keySet();
-    }
-
     public Iterator<String> keys() {
         return table.keys();
     }
@@ -39,7 +36,8 @@ public class SyncKVStructuredTable<T> {
     }
 
     public Stream<Map.Entry<String, T>> stream() {
-        return table.keySet().stream().map(key -> new AbstractMap.SimpleImmutableEntry<>(key, get(key)));
+        Iterable<String> iterable = () -> keys();
+        return StreamSupport.stream(iterable.spliterator(), false).map(key -> new AbstractMap.SimpleImmutableEntry<>(key, get(key)));
     }
 
 

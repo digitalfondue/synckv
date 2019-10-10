@@ -164,7 +164,8 @@ public class SyncKVTable {
         }
     }
 
-    public Set<String> keySet() {
+    @Deprecated
+    private Set<String> keySet() {
         return rawKeySet()
                 .stream()
                 .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8)) //trim away the metadata
@@ -180,6 +181,7 @@ public class SyncKVTable {
     }
 
     public Iterator<String> keys() {
+        //TODO: implement a more lazy version with a custom iterator
         return keySet().iterator();
     }
 
