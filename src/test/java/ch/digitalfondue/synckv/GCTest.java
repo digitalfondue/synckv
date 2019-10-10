@@ -30,8 +30,7 @@ public class GCTest {
             kv.disableCompacting(false);
             oldKVCollector.run();
 
-
-
+            Assert.assertEquals("test2", table.getAsString("test"));
             Assert.assertEquals(1, table.keySet().size());
             Assert.assertEquals(1, table.formattedRawKeySet().size());
         }

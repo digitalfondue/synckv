@@ -54,6 +54,25 @@ public class SyncKVTable {
         this.disableSync = disableSync;
     }
 
+    static boolean sameKeyIgnoringMetadata(byte[] a, byte[] b) {
+        if (a == null && b == null) {
+            return true;
+        }
+
+        if ((a == null && b != null) || (a != null && b == null)) {
+            return false;
+        }
+
+        if (a.length != b.length) {
+            return false;
+        }
+
+        ByteBuffer keyA = ByteBuffer.wrap(a, 0, a.length - METADATA_LENGTH);
+        ByteBuffer keyB = ByteBuffer.wrap(b, 0, b.length - METADATA_LENGTH);
+
+        return keyA.equals(keyB);
+    }
+
     static int compareKey(byte[] ba, byte[] bb) {
         ByteBuffer keyA = ByteBuffer.wrap(ba, 0, ba.length - METADATA_LENGTH);
         ByteBuffer keyB = ByteBuffer.wrap(bb, 0, bb.length - METADATA_LENGTH);
