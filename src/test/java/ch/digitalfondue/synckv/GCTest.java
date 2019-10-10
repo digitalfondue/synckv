@@ -3,9 +3,6 @@ package ch.digitalfondue.synckv;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.List;
-import java.util.Map;
-
 public class GCTest {
 
     @Test
@@ -16,14 +13,12 @@ public class GCTest {
             kv.disableCompacting(true);
             table.put("test", "test");
             Assert.assertEquals(1, table.keySet().size());
-            Assert.assertEquals(1, table.formattedRawKeySet().size());
+            Assert.assertEquals(1, table.rawKeySet().size());
             Assert.assertEquals("test", table.getAsString("test"));
             table.put("test", "test2");
             Assert.assertEquals(1, table.keySet().size());
-            Assert.assertEquals(2, table.formattedRawKeySet().size());
+            Assert.assertEquals(2, table.rawKeySet().size());
             Assert.assertEquals("test2", table.getAsString("test"));
-
-            List<Map.Entry<String, byte[]>> keysWithRawKey = table.getKeysWithRawKey();
 
             OldKVCollector oldKVCollector = new OldKVCollector(kv);
 
@@ -32,7 +27,7 @@ public class GCTest {
 
             Assert.assertEquals("test2", table.getAsString("test"));
             Assert.assertEquals(1, table.keySet().size());
-            Assert.assertEquals(1, table.formattedRawKeySet().size());
+            Assert.assertEquals(1, table.rawKeySet().size());
         }
     }
 }

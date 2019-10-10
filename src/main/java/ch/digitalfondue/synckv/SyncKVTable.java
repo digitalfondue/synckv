@@ -6,9 +6,6 @@ import org.h2.mvstore.WriteBuffer;
 import org.h2.mvstore.type.DataType;
 import org.jgroups.JChannel;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -32,7 +29,7 @@ public class SyncKVTable {
     private final AtomicReference<TableStats> tableStats = new AtomicReference<>();
 
     //currentTimeInMilli and nanoTime and random.nextInt
-    private static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
+    static final int METADATA_LENGTH = Long.BYTES + Long.BYTES + Integer.BYTES;
     private final AtomicBoolean disableSync;
     private static final byte[] FLOOR_METADATA = new byte[METADATA_LENGTH]; //<- filled with -128
 
@@ -168,41 +165,15 @@ public class SyncKVTable {
     }
 
     public Set<String> keySet() {
-        return table.keySet()
+        return rawKeySet()
                 .stream()
                 .map(s -> new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8)) //trim away the metadata
                 .collect(Collectors.toCollection(TreeSet::new)); //keep the order and remove duplicate keys
     }
 
-    private static String formatRawKey(byte[] rawKey) {
-        String res = new String(rawKey, 0, rawKey.length - METADATA_LENGTH, StandardCharsets.UTF_8);
-        DataInputStream dis = new DataInputStream(new ByteArrayInputStream(rawKey, rawKey.length - METADATA_LENGTH, METADATA_LENGTH));
-        try {
-            return res + "_" + dis.readLong() + "_" + dis.readLong() + "_" + dis.readInt();
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    Set<String> formattedRawKeySet() {
-        return table.keySet()
-                .stream()
-                .map(SyncKVTable::formatRawKey)
-                .collect(Collectors.toCollection(TreeSet::new));
-    }
-
     Set<byte[]> rawKeySet() {
         return table.keySet();
     }
-
-    List<Map.Entry<String, byte[]>> getKeysWithRawKey() {
-        return table.keySet().stream().map(s -> {
-            String res = new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
-            return new AbstractMap.SimpleImmutableEntry<>(res, s);
-        }).collect(Collectors.toList());
-    }
-
-
 
     public int count() {
         return keySet().size();

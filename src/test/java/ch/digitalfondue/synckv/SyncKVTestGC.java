@@ -1,6 +1,8 @@
 package ch.digitalfondue.synckv;
 
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -8,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class SyncKVTestGC {
 
@@ -53,9 +56,16 @@ public class SyncKVTestGC {
 
     public static String dumpTable(SyncKVTable table) {
         StringBuilder sb = new StringBuilder();
-        for(Map.Entry<String, byte[]> k : table.getKeysWithRawKey()) {
+        for(Map.Entry<String, byte[]> k : getKeysWithRawKey(table)) {
             sb.append("{").append(k.getKey()).append(", ").append(new String(table.getRawKV(k.getValue()), StandardCharsets.UTF_8)).append("} ");
         }
         return sb.toString();
+    }
+
+    static List<Map.Entry<String, byte[]>> getKeysWithRawKey(SyncKVTable table) {
+        return table.rawKeySet().stream().map(s -> {
+            String res = new String(s, 0, s.length - SyncKVTable.METADATA_LENGTH, StandardCharsets.UTF_8);
+            return new AbstractMap.SimpleImmutableEntry<>(res, s);
+        }).collect(Collectors.toList());
     }
 }
