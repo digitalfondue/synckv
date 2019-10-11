@@ -108,21 +108,6 @@ class MerkleTreeVariantRoot implements NodeWithChildPosition {
         }
     }
 
-
-    boolean delete(byte[] value) {
-        ByteBuffer wrapped = ByteBuffer.wrap(value);
-        int hashWrappedValue = MurmurHash.hash(wrapped);
-        int bucket = Math.abs(hashWrappedValue % children.length);
-        if (children[bucket] == null) {
-            return false;
-        }
-        boolean res = children[bucket].delete(wrapped, hashWrappedValue - bucket);
-        if (res) {
-            keyCount -= 1;
-        }
-        return res;
-    }
-
     @Override
     public byte position(NodeWithChildPosition child) {
         return position(children, child);
@@ -185,15 +170,6 @@ class MerkleTreeVariantRoot implements NodeWithChildPosition {
             }
         }
 
-
-        boolean delete(ByteBuffer wrapped, int resultingHash) {
-            if (depth == 0) {
-                return deleteValue(wrapped);
-            } else {
-                return selectBucketDelete(wrapped, resultingHash);
-            }
-        }
-
         private boolean selectBucket(ByteBuffer wrapped, int resultingHash) {
             if (children == null) {
                 this.children = new Node[breadth];
@@ -206,19 +182,6 @@ class MerkleTreeVariantRoot implements NodeWithChildPosition {
             }
             //
             return children[bucket].add(wrapped, resultingHash - bucket);
-        }
-
-        private boolean selectBucketDelete(ByteBuffer wrapped, int resultingHash) {
-            if (children == null) {
-                return false;
-            }
-
-            int bucket = Math.abs(resultingHash % children.length);
-            if (children[bucket] == null) {
-                return false;
-            }
-
-            return children[bucket].delete(wrapped, resultingHash - bucket);
         }
 
         private boolean insertValue(ByteBuffer wrapped) {

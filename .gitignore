@@ -3,6 +3,9 @@
 .settings
 target
 node_modules
+s1
+s2
+s3
 
 # Intellij
 .idea/
