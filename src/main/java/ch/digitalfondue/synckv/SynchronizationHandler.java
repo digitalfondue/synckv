@@ -94,7 +94,7 @@ class SynchronizationHandler implements Runnable {
                 syncKV.getTable(tableName).importRawData(tablePayload);
             } else {
                 //partial sync here
-                List<MerkleTreeVariantRoot.ExportLeaf> exportLeaves = syncKV.getTableTree(tableName).exportLeafStructureOnly();
+                List<MerkleTreeVariantRoot.ExportLeaf> exportLeaves = syncKV.getTable(tableName).getMerkleTreeForMap().exportLeafStructureOnly();
                 List<KV> tablePayload = rpcFacade.getPartialTableData(remote, tableName, exportLeaves).join();
                 LOGGER.fine(() -> String.format("%s: for table: %s will be inserting %d kv", syncKV.getClusterMemberName(), tableName, tablePayload.size()));
                 syncKV.getTable(tableName).importRawData(tablePayload);

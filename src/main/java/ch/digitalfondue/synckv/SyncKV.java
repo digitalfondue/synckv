@@ -243,8 +243,4 @@ public class SyncKV implements AutoCloseable, Closeable {
             scheduledExecutor.shutdown();
         }
     }
-
-    MerkleTreeVariantRoot getTableTree(String table) {
-        return getMerkleTreeForMap(getTable(table));
-    }
 }

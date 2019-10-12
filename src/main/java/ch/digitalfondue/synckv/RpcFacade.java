@@ -151,7 +151,7 @@ class RpcFacade {
     List<KV> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
         List<KV> res = new ArrayList<>();
         SyncKVTable localTable = syncKV.getTable(tableName);
-        MerkleTreeVariantRoot tableTree = syncKV.getMerkleTreeForMap(localTable);
+        MerkleTreeVariantRoot tableTree = localTable.getMerkleTreeForMap();
         Set<ExportLeaf> local = new HashSet<>(tableTree.exportLeafStructureOnly());
         local.removeAll(remote);
         for (ExportLeaf el : local) {

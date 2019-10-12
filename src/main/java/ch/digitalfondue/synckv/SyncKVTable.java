@@ -369,4 +369,11 @@ public class SyncKVTable {
         tableStats.set(t);
         return t;
     }
+
+    MerkleTreeVariantRoot getMerkleTreeForMap() {
+        //3**7 = 2187 buckets
+        MerkleTreeVariantRoot t = new MerkleTreeVariantRoot((byte) 3, (byte) 7);
+        rawKeySet().stream().forEach(t::add);
+        return t;
+    }
 }
