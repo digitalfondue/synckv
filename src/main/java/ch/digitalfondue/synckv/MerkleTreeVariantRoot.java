@@ -208,13 +208,6 @@ class MerkleTreeVariantRoot implements NodeWithChildPosition {
             }
         }
 
-        private boolean deleteValue(ByteBuffer wrapped) {
-            if (this.content == null || !this.content.contains(wrapped)) {
-                return false;
-            }
-            return this.content.remove(wrapped);
-        }
-
         @Override
         public byte position(NodeWithChildPosition child) {
             return MerkleTreeVariantRoot.position(children, child);
