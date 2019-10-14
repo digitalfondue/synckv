@@ -153,13 +153,6 @@ public class SyncKV implements AutoCloseable, Closeable {
         }
     }
 
-    MerkleTreeVariantRoot getMerkleTreeForMap(SyncKVTable table) {
-        //3**7 = 2187 buckets
-        MerkleTreeVariantRoot t = new MerkleTreeVariantRoot((byte) 3, (byte) 7);
-        table.rawKeySet().stream().forEach(t::add);
-        return t;
-    }
-
     private static class MPINGCustom extends MPING {
         MPINGCustom(boolean send_on_all_interfaces) {
             this.send_on_all_interfaces = send_on_all_interfaces;

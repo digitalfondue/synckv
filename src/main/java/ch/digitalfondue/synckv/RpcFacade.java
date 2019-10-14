@@ -1,6 +1,5 @@
 package ch.digitalfondue.synckv;
 
-import ch.digitalfondue.synckv.MerkleTreeVariantRoot.ExportLeaf;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.blocks.MethodCall;
@@ -47,7 +46,7 @@ class RpcFacade {
             case HANDLE_GET_FULL_TABLE_DATA:
                 return handleGetFullTableData((String) argumentsValue[0]);
             case HANDLE_GET_PARTIAL_TABLE_DATA:
-                return handleGetPartialTableData((String) argumentsValue[0], (List<ExportLeaf>) argumentsValue[1]);
+                return handleGetPartialTableData((String) argumentsValue[0], (List<TreeSync.ExportLeaf>) argumentsValue[1]);
         }
         return null;
     }
@@ -139,7 +138,7 @@ class RpcFacade {
     }
 
     // -----------------
-    CompletableFuture<List<KV>> getPartialTableData(Address address, String tableName, List<ExportLeaf> exportLeaves) {
+    CompletableFuture<List<KV>> getPartialTableData(Address address, String tableName, List<TreeSync.ExportLeaf> exportLeaves) {
         return syncSend(address, new MethodCall(HANDLE_GET_PARTIAL_TABLE_DATA, new Object[]{tableName, exportLeaves}, new Class[]{String.class, List.class}));
     }
 
@@ -148,19 +147,17 @@ class RpcFacade {
     //
     // Note: it's unidirectional, but due to the nature of the sync process, it will converge
     private static final short HANDLE_GET_PARTIAL_TABLE_DATA = 4;
-    List<KV> handleGetPartialTableData(String tableName, List<ExportLeaf> remote) {
+    List<KV> handleGetPartialTableData(String tableName, List<TreeSync.ExportLeaf> remote) {
         List<KV> res = new ArrayList<>();
         SyncKVTable localTable = syncKV.getTable(tableName);
-        MerkleTreeVariantRoot tableTree = localTable.getMerkleTreeForMap();
-        Set<ExportLeaf> local = new HashSet<>(tableTree.exportLeafStructureOnly());
-        local.removeAll(remote);
-        for (ExportLeaf el : local) {
-            tableTree.getKeysForPath(el.getPath()).forEach(bb -> {
-                byte[] rawKey = bb.array();
-                byte[] data = localTable.getRawKV(rawKey);
-                res.add(new KV(rawKey, data));
-            });
+        TreeSync localTreeSync = localTable.getTreeSync();
+        localTreeSync.removeMatchingLeafs(remote);
+        for(byte[] key : localTable.rawKeySet()) {
+            if (localTreeSync.isInExistingBucket(key)) {
+                res.add(new KV(key, localTable.getRawKV(key)));
+            }
         }
+        LOGGER.log(Level.FINE, () -> String.format("sync for %d keys", res.size()));
         return res;
     }
     // -----------------

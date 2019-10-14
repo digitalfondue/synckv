@@ -2,7 +2,6 @@ package ch.digitalfondue.synckv;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -14,9 +13,9 @@ public class SyncKVTest {
 
     public static void main(String[] args) {
 
-        //Logger rootLog = Logger.getLogger("");
-        //rootLog.setLevel( Level.FINE );
-        //rootLog.getHandlers()[0].setLevel( Level.FINE );
+        Logger rootLog = Logger.getLogger("");
+        rootLog.setLevel( Level.FINE );
+        rootLog.getHandlers()[0].setLevel( Level.FINE );
 
         removeFile("s1");
         removeFile("s2");
