@@ -20,7 +20,7 @@ class TreeSync implements NodeWithChildPosition {
 
     @Override
     public byte position(NodeWithChildPosition child) {
-        return 0;
+        return position(children, child);
     }
 
     @Override
@@ -44,6 +44,42 @@ class TreeSync implements NodeWithChildPosition {
         children[bucket].add(wrapped, hashWrappedValue - bucket);
     }
 
+    boolean isInExistingBucket(byte[] value) {
+        ByteBuffer wrapped = ByteBuffer.wrap(value);
+        int hashWrappedValue = MurmurHash.hash(wrapped);
+        int bucket = Math.abs(hashWrappedValue % children.length);
+        if (children[bucket] != null) {
+            return children[bucket].isInExistingBucket(wrapped, hashWrappedValue - bucket);
+        } else {
+            return false;
+        }
+    }
+
+    void removeMatchingLeafs(List<ExportLeaf> a) {
+        if (children == null) {
+            return;
+        }
+
+        for (ExportLeaf el : a) {
+            byte[] path = el.path;
+            Node node = children[path[0]];
+            if(node == null) {
+                continue;
+            }
+            for (int i = 1; i < path.length; i++) {
+                node = node.children[path[i]];
+                if (node == null) {
+                    break;
+                }
+            }
+
+            if (node != null && node.count == el.keyCount && node.hash == el.hash) {
+                node.count = -1;
+                node.hash = Integer.MIN_VALUE;
+            }
+        }
+    }
+
     List<ExportLeaf> exportLeafStructureOnly() {
         List<ExportLeaf> export = new ArrayList<>();
         for (Node n : children) {
@@ -61,8 +97,8 @@ class TreeSync implements NodeWithChildPosition {
         private final byte depth;
         private final byte breadth;
         private NodeWithChildPosition parent;
-        private int hash;
-        private int count;
+        int hash;
+        int count;
 
         Node(byte depth, byte breadth, NodeWithChildPosition parent) {
             this.depth = depth;
@@ -72,11 +108,13 @@ class TreeSync implements NodeWithChildPosition {
 
         @Override
         public byte position(NodeWithChildPosition child) {
-            return 0;
+            return TreeSync.position(children, child);
         }
 
         @Override
-        public void path(ByteArrayOutputStream l) {
+        public void path(ByteArrayOutputStream sb) {
+            parent.path(sb);
+            sb.write(parent.position(this));
         }
 
         boolean add(ByteBuffer wrapped, int resultingHash) {
@@ -126,6 +164,21 @@ class TreeSync implements NodeWithChildPosition {
                 }
             }
         }
+
+        public boolean isInExistingBucket(ByteBuffer wrapped, int resultingHash) {
+            if (depth == 0) {
+                return count > 0;
+            } else {
+                if (children == null) {
+                    return false;
+                }
+                int bucket = Math.abs(resultingHash % children.length);
+                if (children[bucket] == null) {
+                    return false;
+                }
+                return children[bucket].isInExistingBucket(wrapped, resultingHash - bucket);
+            }
+        }
     }
 
     static class ExportLeaf implements Serializable {
@@ -146,7 +199,7 @@ class TreeSync implements NodeWithChildPosition {
 
         @Override
         public boolean equals(Object obj) {
-            if (obj == null || !(obj instanceof MerkleTreeVariantRoot.ExportLeaf)) {
+            if (obj == null || !(obj instanceof ExportLeaf)) {
                 return false;
             }
 
@@ -158,10 +211,6 @@ class TreeSync implements NodeWithChildPosition {
         public int hashCode() {
             return Arrays.hashCode(new int[]{Integer.hashCode(hash), Integer.hashCode(keyCount), Arrays.hashCode(path)});
         }
-
-        byte[] getPath() {
-            return path;
-        }
     }
 
     private static String format(byte[] ar) {
@@ -171,5 +220,17 @@ class TreeSync implements NodeWithChildPosition {
         }
         sb.delete(sb.length() - 2, sb.length());
         return sb.toString();
+    }
+
+    private static byte position(Node[] children, NodeWithChildPosition node) {
+        if (children == null) {
+            return -1;
+        }
+        for (byte i = 0; i < children.length; i++) {
+            if (children[i] == node) {
+                return i;
+            }
+        }
+        return -1;
     }
 }
