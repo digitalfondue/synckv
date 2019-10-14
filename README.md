@@ -32,12 +32,12 @@ It has the following limitations:
 <dependency>
     <groupId>ch.digitalfondue.synckv</groupId>
     <artifactId>synckv</artifactId>
-    <version>0.4.1</version>
+    <version>0.5.0</version>
 </dependency>
  ```
 
 gradle:
 
 ```
-compile 'ch.digitalfondue.synckv:synckv:0.4.1'
+compile 'ch.digitalfondue.synckv:synckv:0.5.0'
 ```

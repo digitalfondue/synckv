@@ -32,7 +32,7 @@ import java.nio.ByteBuffer;
  */
 class MurmurHash {
 
-    static int hash(byte[] data) {
+    private static int hash(byte[] data) {
         return hash(data, -1);
     }
 
