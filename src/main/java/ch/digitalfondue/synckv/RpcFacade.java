@@ -44,9 +44,14 @@ class RpcFacade {
             case HANDLE_GET_TABLE_METADATA_FOR_SYNC:
                 return handleGetTableMetadataForSync();
             case HANDLE_GET_FULL_TABLE_DATA:
-                return handleGetFullTableData((String) argumentsValue[0]);
+                handleGetFullTableData((String) argumentsValue[0], (String) argumentsValue[1]);
+                break;
             case HANDLE_GET_PARTIAL_TABLE_DATA:
-                return handleGetPartialTableData((String) argumentsValue[0], (List<TreeSync.ExportLeaf>) argumentsValue[1]);
+                handleGetPartialTableData((String) argumentsValue[0], (List<TreeSync.ExportLeaf>) argumentsValue[1], (String) argumentsValue[2]);
+                break;
+            case HANDLE_RAW_BULK_PUT:
+                setHandleRawBulkPut((String) argumentsValue[0], (List<KV>) argumentsValue[1]);
+                break;
         }
         return null;
     }
@@ -128,18 +133,36 @@ class RpcFacade {
 
     // -----------------
     // -----------------
-    CompletableFuture<List<KV>> getFullTableData(Address address, String tableName) {
-        return syncSend(address, new MethodCall(HANDLE_GET_FULL_TABLE_DATA, new Object[]{tableName}, new Class[]{String.class}));
+    void getFullTableData(Address address, String tableName, Address source) {
+        send(address, new MethodCall(HANDLE_GET_FULL_TABLE_DATA, new Object[]{tableName, addressToBase64(source)}, new Class[]{String.class, String.class}));
     }
 
     private static final short HANDLE_GET_FULL_TABLE_DATA = 3;
-    List<KV> handleGetFullTableData(String tableName) {
-        return syncKV.getTable(tableName).exportRawData();
+    void handleGetFullTableData(String tableName, String src) {
+        Address toSend = fromBase64(src);
+        SyncKVTable table = syncKV.getTable(tableName);
+        List<KV> res = new ArrayList<>();
+        Iterator<byte[]> it = table.rawKeySet().iterator();
+        while (it.hasNext()) {
+            byte[] k = it.next();
+            byte[] v = table.getRawKV(k);
+            if (v != null) {
+                res.add(new KV(k, v));
+            }
+            if (res.size() > 250) {
+                send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
+                res = new ArrayList<>();
+            }
+        }
+
+        if (res.size() > 0) {
+            send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
+        }
     }
 
     // -----------------
-    CompletableFuture<List<KV>> getPartialTableData(Address address, String tableName, List<TreeSync.ExportLeaf> exportLeaves) {
-        return syncSend(address, new MethodCall(HANDLE_GET_PARTIAL_TABLE_DATA, new Object[]{tableName, exportLeaves}, new Class[]{String.class, List.class}));
+    void getPartialTableData(Address address, String tableName, List<TreeSync.ExportLeaf> exportLeaves, Address source) {
+        send(address, new MethodCall(HANDLE_GET_PARTIAL_TABLE_DATA, new Object[]{tableName, exportLeaves, addressToBase64(source)}, new Class[]{String.class, List.class, String.class}));
     }
 
     // We receive the leaf from the remote, if we remove them (the equals one) from our local tree, we have the
@@ -147,20 +170,39 @@ class RpcFacade {
     //
     // Note: it's unidirectional, but due to the nature of the sync process, it will converge
     private static final short HANDLE_GET_PARTIAL_TABLE_DATA = 4;
-    List<KV> handleGetPartialTableData(String tableName, List<TreeSync.ExportLeaf> remote) {
-        List<KV> res = new ArrayList<>();
+    void handleGetPartialTableData(String tableName, List<TreeSync.ExportLeaf> remote, String source) {
+        Address toSend = fromBase64(source);
         SyncKVTable localTable = syncKV.getTable(tableName);
         TreeSync localTreeSync = localTable.getTreeSync();
         localTreeSync.removeMatchingLeafs(remote);
+        List<KV> res = new ArrayList<>();
         for(byte[] key : localTable.rawKeySet()) {
             if (localTreeSync.isInExistingBucket(key)) {
-                res.add(new KV(key, localTable.getRawKV(key)));
+                byte[] value = localTable.getRawKV(key);
+                if (value != null) {
+                    res.add(new KV(key, localTable.getRawKV(key)));
+                }
+            }
+            if (res.size() > 250) {
+                send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
+                res = new ArrayList<>();
             }
         }
-        LOGGER.log(Level.FINE, () -> String.format("sync for %d keys", res.size()));
-        return res;
+        if (res.size() > 0) {
+            send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
+        }
     }
     // -----------------
+
+    private static final short HANDLE_RAW_BULK_PUT = 5;
+
+    void setHandleRawBulkPut(String tableName, List<KV> kvs) {
+        SyncKVTable localTable = syncKV.getTable(tableName);
+        localTable.importRawData(kvs);
+        LOGGER.log(Level.FINE, () -> "Bulk import of " + kvs.size() + " keys in table " + tableName);
+    }
+    // -----------------
+
 
 
     private void broadcastToEverybodyElse(MethodCall call) {

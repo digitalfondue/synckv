@@ -66,7 +66,7 @@ public class SyncKV implements AutoCloseable, Closeable {
 
                 this.scheduledExecutor = new ScheduledThreadPoolExecutor(2);
 
-                this.scheduledExecutor.scheduleAtFixedRate(new SynchronizationHandler(this, rpcFacade), 2, 10, TimeUnit.SECONDS);
+                this.scheduledExecutor.scheduleAtFixedRate(new SynchronizationHandler(this, rpcFacade), 2, 30, TimeUnit.SECONDS);
 
             } catch (Exception e) {
                 throw new IllegalStateException(e);

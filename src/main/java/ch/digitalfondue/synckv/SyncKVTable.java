@@ -329,14 +329,6 @@ public class SyncKVTable {
         return table.get(k);
     }
 
-    List<KV> exportRawData() {
-        List<KV> res = new ArrayList<>();
-        for (byte[] key : table.keySet()) {
-            res.add(new KV(key, table.get(key)));
-        }
-        return res;
-    }
-
     void importRawData(List<KV> tablePayload) {
         for (KV kv : tablePayload) {
             addRawKV(kv.k, kv.v);

@@ -89,15 +89,13 @@ class SynchronizationHandler implements Runnable {
             LOGGER.fine(() -> String.format("%s: Need to sync table: %s with remote: %s", syncKV.getClusterMemberName(), tableName, remote)); //TODO better logger msg
             if (fullSync) {
                 //full sync code here
-                List<KV> tablePayload = rpcFacade.getFullTableData(remote, tableName).join();
-                LOGGER.fine(() -> String.format("%s: for table: %s will be inserting %d kv", syncKV.getClusterMemberName(), tableName, tablePayload.size()));
-                syncKV.getTable(tableName).importRawData(tablePayload);
+                LOGGER.log(Level.FINE, () -> "Full sync for table " + tableName);
+                rpcFacade.getFullTableData(remote, tableName, syncKV.getAddress());
             } else {
                 //partial sync here
                 List<TreeSync.ExportLeaf> exportLeaves = syncKV.getTable(tableName).getTreeSync().exportLeafStructureOnly();
-                List<KV> tablePayload = rpcFacade.getPartialTableData(remote, tableName, exportLeaves).join();
-                LOGGER.fine(() -> String.format("%s: for table: %s will be inserting %d kv", syncKV.getClusterMemberName(), tableName, tablePayload.size()));
-                syncKV.getTable(tableName).importRawData(tablePayload);
+                LOGGER.log(Level.FINE, () -> "Partial sync for table " + tableName);
+                rpcFacade.getPartialTableData(remote, tableName, exportLeaves, syncKV.getAddress());
             }
         } catch (Throwable e) {
             LOGGER.log(Level.WARNING, "Error while calling syncTable", e);
