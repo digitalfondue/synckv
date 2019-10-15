@@ -23,7 +23,7 @@ public class GCTest {
             kv.disableCompacting(true);
             table.put("test", "test");
             Assert.assertEquals(1, table.count());
-            Assert.assertEquals(1, table.rawKeySet().size());
+            Assert.assertEquals(1, table.rawKeyWithOldValuesSet().size());
             Assert.assertEquals("test", table.getAsString("test"));
 
             keys = table.keys();
@@ -32,7 +32,7 @@ public class GCTest {
 
             table.put("test", "test2");
             Assert.assertEquals(1, table.count());
-            Assert.assertEquals(2, table.rawKeySet().size());
+            Assert.assertEquals(2, table.rawKeyWithOldValuesSet().size());
             Assert.assertEquals("test2", table.getAsString("test"));
 
             keys = table.keys();
@@ -41,7 +41,7 @@ public class GCTest {
 
             table.put("test", "test3");
             Assert.assertEquals(1, table.count());
-            Assert.assertEquals(3, table.rawKeySet().size());
+            Assert.assertEquals(3, table.rawKeyWithOldValuesSet().size());
             Assert.assertEquals("test3", table.getAsString("test"));
 
             keys = table.keys();
@@ -51,7 +51,7 @@ public class GCTest {
             table.put("test1", "next");
 
             Assert.assertEquals(2, table.count());
-            Assert.assertEquals(4, table.rawKeySet().size());
+            Assert.assertEquals(4, table.rawKeyWithOldValuesSet().size());
             Assert.assertEquals("test3", table.getAsString("test"));
 
             keys = table.keys();
@@ -68,7 +68,7 @@ public class GCTest {
             Assert.assertEquals("test3", table.getAsString("test"));
             Assert.assertEquals("next", table.getAsString("test1"));
             Assert.assertEquals(2, table.count());
-            Assert.assertEquals(2, table.rawKeySet().size());
+            Assert.assertEquals(2, table.rawKeyWithOldValuesSet().size());
         }
     }
 }

@@ -18,7 +18,7 @@ class OldKVCollector implements Runnable {
             SyncKVTable table = syncKV.getTable(tableName);
 
             byte[] previousKey = null;
-            for(byte[] key : table.rawKeySet()) {
+            for(byte[] key : table.rawKeyWithOldValuesSet()) {
                 if (SyncKVTable.sameKeyIgnoringMetadata(previousKey, key)) {
                    table.deleteRawKV(previousKey);
                 }

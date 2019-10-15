@@ -142,7 +142,7 @@ class RpcFacade {
         Address toSend = fromBase64(src);
         SyncKVTable table = syncKV.getTable(tableName);
         List<KV> res = new ArrayList<>();
-        Iterator<byte[]> it = table.rawKeySet().iterator();
+        Iterator<byte[]> it = table.rawKeys();
         while (it.hasNext()) {
             byte[] k = it.next();
             byte[] v = table.getRawKV(k);
@@ -176,7 +176,9 @@ class RpcFacade {
         TreeSync localTreeSync = localTable.getTreeSync();
         localTreeSync.removeMatchingLeafs(remote);
         List<KV> res = new ArrayList<>();
-        for(byte[] key : localTable.rawKeySet()) {
+        Iterator<byte[]> it = localTable.rawKeys();
+        while(it.hasNext()) {
+            byte[] key = it.next();
             if (localTreeSync.isInExistingBucket(key)) {
                 byte[] value = localTable.getRawKV(key);
                 if (value != null) {

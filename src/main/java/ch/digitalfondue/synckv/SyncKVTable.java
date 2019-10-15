@@ -163,7 +163,7 @@ public class SyncKVTable {
         }
     }
 
-    Set<byte[]> rawKeySet() {
+    Set<byte[]> rawKeyWithOldValuesSet() {
         return table.keySet();
     }
 
@@ -177,14 +177,10 @@ public class SyncKVTable {
         return count;
     }
 
-    private static String rawKeyToString(byte[] s) {
-        return new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
-    }
-
-    public Iterator<String> keys() {
+    Iterator<byte[]> rawKeys() {
         PushbackIterator<byte[]> bi = new PushbackIterator<>(table.keyIterator(null));
 
-        return new Iterator<String>() {
+        return new Iterator<byte[]>() {
 
             @Override
             public boolean hasNext() {
@@ -192,7 +188,7 @@ public class SyncKVTable {
             }
 
             @Override
-            public String next() {
+            public byte[] next() {
                 byte[] key = bi.next();
                 if (bi.hasNext()) {
                     byte[] nextKey;
@@ -205,7 +201,24 @@ public class SyncKVTable {
                         key = nextKey;
                     } while(bi.hasNext());
                 }
-                return rawKeyToString(key);
+                return key;
+            }
+        };
+    }
+
+    public Iterator<String> keys() {
+        Iterator<byte[]> it = rawKeys();
+        return new Iterator<String>() {
+
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public String next() {
+                byte[] s = it.next();
+                return new String(s, 0, s.length - METADATA_LENGTH, StandardCharsets.UTF_8);
             }
         };
     }
@@ -365,7 +378,7 @@ public class SyncKVTable {
     TreeSync getTreeSync() {
         //3**7 = 2187 buckets
         TreeSync t = new TreeSync((byte) 3, (byte) 7);
-        rawKeySet().stream().forEach(t::add);
+        rawKeys().forEachRemaining(t::add);
         return t;
     }
 }

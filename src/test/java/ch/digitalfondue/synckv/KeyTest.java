@@ -20,7 +20,7 @@ public class KeyTest {
             test.put("key", "value");
             test.put("key", "value2");
 
-            List<byte[]> keysWithRawKey = new ArrayList<>(test.rawKeySet());
+            List<byte[]> keysWithRawKey = new ArrayList<>(test.rawKeyWithOldValuesSet());
             Assert.assertEquals(2, keysWithRawKey.size());
 
             //checking raw keys

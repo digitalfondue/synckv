@@ -63,7 +63,7 @@ public class SyncKVTestGC {
     }
 
     static List<Map.Entry<String, byte[]>> getKeysWithRawKey(SyncKVTable table) {
-        return table.rawKeySet().stream().map(s -> {
+        return table.rawKeyWithOldValuesSet().stream().map(s -> {
             String res = new String(s, 0, s.length - SyncKVTable.METADATA_LENGTH, StandardCharsets.UTF_8);
             return new AbstractMap.SimpleImmutableEntry<>(res, s);
         }).collect(Collectors.toList());
