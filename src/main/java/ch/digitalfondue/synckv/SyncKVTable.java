@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class SyncKVTable {
 
@@ -32,6 +33,9 @@ public class SyncKVTable {
     private final AtomicBoolean disableSync;
     private static final byte[] FLOOR_METADATA = new byte[METADATA_LENGTH]; //<- filled with -128
 
+    private static final DataType TABLE_KEY_TYPE = new KeyByteArrayDataType();
+    private static final DataType TABLE_VALUE_TYPE = new ValueByteArrayDataType();
+
     static {
         Arrays.fill(FLOOR_METADATA, Byte.MIN_VALUE);
     }
@@ -43,8 +47,8 @@ public class SyncKVTable {
         this.channel = channel;
 
         MVMap.Builder b = new MVMap.Builder<>();
-        b.setKeyType(new KeyByteArrayDataType());
-        b.setValueType(new ValueByteArrayDataType());
+        b.setKeyType(TABLE_KEY_TYPE);
+        b.setValueType(TABLE_VALUE_TYPE);
         this.table = store.openMap(tableName, b);
         this.store = store;
         this.disableSync = disableSync;
@@ -163,8 +167,22 @@ public class SyncKVTable {
         }
     }
 
-    Set<byte[]> rawKeyWithOldValuesSet() {
-        return table.keySet();
+    List<Map.Entry<byte[], byte[]>> dumpTable() {
+        return table.keySet().stream().map(k -> new AbstractMap.SimpleImmutableEntry<byte[], byte[]>(k, table.get(k))).collect(Collectors.toList());
+    }
+
+    void collectOldKeys() {
+        byte[] previousKey = null;
+        int count = 0;
+        for(byte[] key : table.keySet()) {
+            if (sameKeyIgnoringMetadata(previousKey, key)) {
+                count++;
+                deleteRawKV(previousKey);
+            }
+            previousKey = key;
+        }
+        int finalCount = count;
+        LOGGER.log(Level.FINE, () -> "in table " + tableName + ": removed " + finalCount + " keys");
     }
 
     public int count() {

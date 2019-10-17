@@ -4,9 +4,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class KeyTest {
@@ -20,7 +20,7 @@ public class KeyTest {
             test.put("key", "value");
             test.put("key", "value2");
 
-            List<byte[]> keysWithRawKey = new ArrayList<>(test.rawKeyWithOldValuesSet());
+            List<byte[]> keysWithRawKey = test.dumpTable().stream().map(Map.Entry::getKey).collect(Collectors.toList());
             Assert.assertEquals(2, keysWithRawKey.size());
 
             //checking raw keys
