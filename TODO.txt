@@ -1,11 +1,6 @@
-- as the implementation has been simplified: drop jgroups?
-    - in the end we need: multicast ping for auto discovery and a nio based server with encrypted packets communication
 - cleanup, documentation, tests, ... ?
 - clock skew detection
 - duplicate key insertion detection
-- garbage collector for old keys/value ?
-    - simple: we could simply remove the value of the old key locally (after a put) the "history" length could be an option.
-    - more difficult: find a way to safely remove the old key too.
 - sync statistics
    - [table, key received count, last received]
    . [table, key sent count, last sent]
