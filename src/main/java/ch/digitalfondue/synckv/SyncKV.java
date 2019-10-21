@@ -38,6 +38,7 @@ public class SyncKV implements AutoCloseable, Closeable {
     private final AtomicBoolean disableCompacting = new AtomicBoolean();
     private final OldKVCollector oldKVCollector;
     private final Map<String, SyncKVTable> tables = new ConcurrentHashMap<>();
+    final Map<String, SyncStatus> syncStatus = new ConcurrentHashMap<>();
 
     /**
      * Note: if you are using this constructor, call SyncKV.ensureProtocol(); before building the JChannel!
@@ -62,9 +63,16 @@ public class SyncKV implements AutoCloseable, Closeable {
         if (channel != null) {
             try {
                 channel.connect(channelName);
-                this.rpcFacade = new RpcFacade(channel, this::getTable, this::getTableMetadataForSync);
 
-                this.scheduledExecutor = new ScheduledThreadPoolExecutor(2);
+                this.scheduledExecutor = new ScheduledThreadPoolExecutor(3);
+
+                this.rpcFacade = new RpcFacade(channel, this::getTable, this::getTableMetadataForSync, (tableName, end) -> {
+                    if (end) {
+                        syncStatus.remove(tableName);
+                    } else {
+                        syncStatus.put(tableName, new SyncStatus(true, System.currentTimeMillis()));
+                    }
+                }, new TableSyncExecutor(scheduledExecutor, this::getTable));
 
                 this.scheduledExecutor.scheduleAtFixedRate(new SynchronizationHandler(this, rpcFacade), 2, 30, TimeUnit.SECONDS);
 

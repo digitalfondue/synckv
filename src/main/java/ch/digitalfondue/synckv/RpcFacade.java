@@ -12,6 +12,8 @@ import org.jgroups.util.Util;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -30,13 +32,21 @@ class RpcFacade {
     private final JChannel channel;
     private final Function<String, SyncKVTable> tableSupplier;
     private final Supplier<Map<String, TableStats>> statsSupplier;
+    private final BiConsumer<String, Boolean> syncStatusHandler;
+    private final TableSyncExecutor tableSyncExecutor;
 
-    RpcFacade(JChannel channel, Function<String, SyncKVTable> tableSupplier, Supplier<Map<String, TableStats>> statsSupplier) {
+    RpcFacade(JChannel channel,
+              Function<String, SyncKVTable> tableSupplier,
+              Supplier<Map<String, TableStats>> statsSupplier,
+              BiConsumer<String, Boolean> syncStatusHandler,
+              TableSyncExecutor tableSyncExecutor) {
         this.channel = channel;
         this.rpcDispatcher = new RpcDispatcher(channel, this);
         this.rpcDispatcher.setMethodInvoker(this::methodInvoker);
         this.tableSupplier = tableSupplier;
         this.statsSupplier = statsSupplier;
+        this.syncStatusHandler = syncStatusHandler;
+        this.tableSyncExecutor = tableSyncExecutor;
     }
 
     Object methodInvoker(Object target, short method_id, Object[] args) {
@@ -56,8 +66,7 @@ class RpcFacade {
                 handleGetPartialTableData((String) argumentsValue[0], (List<TreeSync.ExportLeaf>) argumentsValue[1], (String) argumentsValue[2]);
                 break;
             case HANDLE_RAW_BULK_PUT:
-                setHandleRawBulkPut((String) argumentsValue[0], (List<KV>) argumentsValue[1]);
-                break;
+                return setHandleRawBulkPut((String) argumentsValue[0], (List<KV>) argumentsValue[1], (boolean) argumentsValue[2]);
         }
         return null;
     }
@@ -146,24 +155,8 @@ class RpcFacade {
     private static final short HANDLE_GET_FULL_TABLE_DATA = 3;
     void handleGetFullTableData(String tableName, String src) {
         Address toSend = fromBase64(src);
-        SyncKVTable table = tableSupplier.apply(tableName);
-        List<KV> res = new ArrayList<>();
-        Iterator<byte[]> it = table.rawKeys();
-        while (it.hasNext()) {
-            byte[] k = it.next();
-            byte[] v = table.getRawKV(k);
-            if (v != null) {
-                res.add(new KV(k, v));
-            }
-            if (res.size() > 250) {
-                send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
-                res = new ArrayList<>();
-            }
-        }
-
-        if (res.size() > 0) {
-            send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
-        }
+        BiFunction<List<KV>, Boolean, CompletableFuture<Boolean>> sendRaw = (kvs, end) -> this.sendRawBulkPut(toSend, tableName, kvs, end);
+        tableSyncExecutor.scheduleFullTableSync(tableName, sendRaw);
     }
 
     // -----------------
@@ -178,36 +171,23 @@ class RpcFacade {
     private static final short HANDLE_GET_PARTIAL_TABLE_DATA = 4;
     void handleGetPartialTableData(String tableName, List<TreeSync.ExportLeaf> remote, String source) {
         Address toSend = fromBase64(source);
-        SyncKVTable localTable = tableSupplier.apply(tableName);
-        TreeSync localTreeSync = localTable.getTreeSync();
-        localTreeSync.removeMatchingLeafs(remote);
-        List<KV> res = new ArrayList<>();
-        Iterator<byte[]> it = localTable.rawKeys();
-        while(it.hasNext()) {
-            byte[] key = it.next();
-            if (localTreeSync.isInExistingBucket(key)) {
-                byte[] value = localTable.getRawKV(key);
-                if (value != null) {
-                    res.add(new KV(key, localTable.getRawKV(key)));
-                }
-            }
-            if (res.size() > 250) {
-                send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
-                res = new ArrayList<>();
-            }
-        }
-        if (res.size() > 0) {
-            send(toSend, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, res}, new Class[]{String.class, List.class}));
-        }
+        BiFunction<List<KV>, Boolean, CompletableFuture<Boolean>> sendRaw = (kvs, end) -> this.sendRawBulkPut(toSend, tableName, kvs, end);
+        tableSyncExecutor.schedulePartialTableSync(tableName, remote, sendRaw);
     }
     // -----------------
 
     private static final short HANDLE_RAW_BULK_PUT = 5;
 
-    void setHandleRawBulkPut(String tableName, List<KV> kvs) {
+    CompletableFuture<Boolean> sendRawBulkPut(Address address, String tableName, List<KV> kvs, boolean end) {
+        return syncSend(address, new MethodCall(HANDLE_RAW_BULK_PUT, new Object[]{tableName, kvs, end}, new Class[]{String.class, List.class, boolean.class}));
+    }
+
+    Boolean setHandleRawBulkPut(String tableName, List<KV> kvs, boolean end) {
         SyncKVTable localTable = tableSupplier.apply(tableName);
         localTable.importRawData(kvs);
+        syncStatusHandler.accept(tableName, end);
         LOGGER.log(Level.FINE, () -> "Bulk import of " + kvs.size() + " keys in table " + tableName);
+        return true;
     }
     // -----------------
 

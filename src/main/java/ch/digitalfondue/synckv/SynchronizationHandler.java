@@ -68,6 +68,19 @@ class SynchronizationHandler implements Runnable {
             Map<String, TableStats> local = syncKV.getTableMetadataForSync();
 
             remote.forEach((tableName, remoteMetadata) -> {
+
+                SyncStatus syncStatus = syncKV.syncStatus.get(tableName);
+
+                //if more than 60 seconds has elapsed from the latest refresh we consider the sync done
+                if (syncStatus != null && ((System.currentTimeMillis() - syncStatus.time) > 60*1000)) {
+                    syncKV.syncStatus.remove(tableName);
+                }
+                if (syncStatus != null && syncStatus.status) {
+                    LOGGER.log(Level.INFO, ()-> "Will skip sync table '" + tableName + "', as it's still syncing");
+                    return; //skip this table
+                }
+
+
                 if (local.containsKey(tableName)) {
                     TableStats localMetadata = local.get(tableName);
                     if (remoteMetadata.hash != localMetadata.hash || remoteMetadata.keyCount != localMetadata.keyCount) {
@@ -87,6 +100,7 @@ class SynchronizationHandler implements Runnable {
     private void syncTable(Address remote, String tableName, boolean fullSync) {
         try {
             LOGGER.fine(() -> String.format("%s: Need to sync table: %s with remote: %s", syncKV.getClusterMemberName(), tableName, remote)); //TODO better logger msg
+            syncKV.syncStatus.put(tableName, new SyncStatus(true, System.currentTimeMillis()));
             if (fullSync) {
                 //full sync code here
                 LOGGER.log(Level.FINE, () -> "Full sync for table " + tableName);
@@ -98,6 +112,7 @@ class SynchronizationHandler implements Runnable {
                 rpcFacade.getPartialTableData(remote, tableName, exportLeaves, syncKV.getAddress());
             }
         } catch (Throwable e) {
+            syncKV.syncStatus.remove(tableName);
             LOGGER.log(Level.WARNING, "Error while calling syncTable", e);
         }
     }

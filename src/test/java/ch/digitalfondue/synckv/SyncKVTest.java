@@ -20,6 +20,9 @@ public class SyncKVTest {
         removeFile("s1");
         removeFile("s2");
         removeFile("s3");
+        removeFile("s4");
+        removeFile("s5");
+        removeFile("s6");
 
         SyncKV kv = new SyncKV("s1", "SyncKV");
         kv.disableSync(true);
@@ -45,6 +48,13 @@ public class SyncKVTest {
         SyncKV k3 = new SyncKV("s3", "SyncKV");
         k3.disableSync(true);
 
+        SyncKV k4 = new SyncKV("s4", "SyncKV");
+        k4.disableSync(true);
+        SyncKV k5 = new SyncKV("s5", "SyncKV");
+        k5.disableSync(true);
+        SyncKV k6 = new SyncKV("s6", "SyncKV");
+        k6.disableSync(true);
+
         for (int i = 0; i < 50_000; i++) {
             String key = Integer.toString(keyGenerator.incrementAndGet());
             boolean choice = r.nextBoolean();
@@ -55,6 +65,9 @@ public class SyncKVTest {
         kv.disableSync(false);
         k2.disableSync(false);
         k3.disableSync(false);
+        k4.disableSync(false);
+        k5.disableSync(false);
+        k6.disableSync(false);
 
 
         if (true) {
@@ -64,6 +77,10 @@ public class SyncKVTest {
                 System.err.println("keys in kv[attendees] " + kv.getClusterMemberName() + " " + kv.getTable("attendees").count());
                 System.err.println("keys in k2[attendees] " + k2.getClusterMemberName() + " " + k2.getTable("attendees").count());
                 System.err.println("keys in k3[attendees] " + k3.getClusterMemberName() + " " + k3.getTable("attendees").count());
+                System.err.println("keys in k4[attendees] " + k4.getClusterMemberName() + " " + k4.getTable("attendees").count());
+                System.err.println("keys in k5[attendees] " + k5.getClusterMemberName() + " " + k5.getTable("attendees").count());
+                System.err.println("keys in k6[attendees] " + k6.getClusterMemberName() + " " + k6.getTable("attendees").count());
+                System.err.println("keys in k6[attendees] " + k6.getClusterMemberName() + " " + k6.getTable("attendees").count());
 
                 System.err.println("keys in kv[anothertable] " + kv.getClusterMemberName() + " " + kv.getTable("anothertable").count());
                 if (k2.hasTable("anothertable")) {
