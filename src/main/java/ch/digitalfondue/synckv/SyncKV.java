@@ -191,11 +191,6 @@ public class SyncKV implements AutoCloseable, Closeable {
         }
     }
 
-    JChannel getChannel() {
-        return channel;
-    }
-
-
     public String getClusterMemberName() {
         return channel != null ? channel.getAddressAsString() : null;
     }
