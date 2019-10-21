@@ -23,7 +23,6 @@ public class SyncKVTable {
     private final String tableName;
     private final SecureRandom random;
     private final RpcFacade rpcFacade;
-    private final JChannel channel;
     private final MVMap<byte[], byte[]> table;
     private final MVStore store;
     private final AtomicReference<TableStats> tableStats = new AtomicReference<>();
@@ -40,11 +39,10 @@ public class SyncKVTable {
         Arrays.fill(FLOOR_METADATA, Byte.MIN_VALUE);
     }
 
-    SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, JChannel channel, AtomicBoolean disableSync) {
+    SyncKVTable(String tableName, MVStore store, SecureRandom random, RpcFacade rpcFacade, AtomicBoolean disableSync) {
         this.tableName = tableName;
         this.random = random;
         this.rpcFacade = rpcFacade;
-        this.channel = channel;
 
         MVMap.Builder b = new MVMap.Builder<>();
         b.setKeyType(TABLE_KEY_TYPE);
@@ -265,7 +263,7 @@ public class SyncKVTable {
         store.tryCommit();
 
         if (rpcFacade != null && !disableSync.get()) {
-            rpcFacade.putRequest(channel.getAddress(), table.getName(), finalKey, value);
+            rpcFacade.putRequest(table.getName(), finalKey, value);
         }
 
         return true;
@@ -342,7 +340,7 @@ public class SyncKVTable {
 
         //
         if (distributed && res == null && rpcFacade != null && !disableSync.get()) { //try to fetch the value in the cluster if it's not present locally
-            KV remote = rpcFacade.getValue(channel.getAddress(), table.getName(), key);
+            KV remote = rpcFacade.getValue(table.getName(), key);
 
             //add value if it's missing
             if (remote != null && remote.k != null) {

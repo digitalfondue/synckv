@@ -62,7 +62,7 @@ public class SyncKV implements AutoCloseable, Closeable {
         if (channel != null) {
             try {
                 channel.connect(channelName);
-                this.rpcFacade = new RpcFacade(this);
+                this.rpcFacade = new RpcFacade(channel, this::getTable, this::getTableMetadataForSync);
 
                 this.scheduledExecutor = new ScheduledThreadPoolExecutor(2);
 
@@ -134,7 +134,7 @@ public class SyncKV implements AutoCloseable, Closeable {
         if (tables.containsKey(name)) {
             return tables.get(name);
         }
-        SyncKVTable kv = new SyncKVTable(name, store, random, rpcFacade, channel, disableSync);
+        SyncKVTable kv = new SyncKVTable(name, store, random, rpcFacade, disableSync);
         tables.put(name, kv);
         return kv;
     }

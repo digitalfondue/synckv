@@ -12,6 +12,8 @@ import org.jgroups.util.Util;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -24,13 +26,17 @@ class RpcFacade {
 
     private final static Logger LOGGER = Logger.getLogger(RpcFacade.class.getName());
 
-    private final SyncKV syncKV;
     private final RpcDispatcher rpcDispatcher;
+    private final JChannel channel;
+    private final Function<String, SyncKVTable> tableSupplier;
+    private final Supplier<Map<String, TableStats>> statsSupplier;
 
-    RpcFacade(SyncKV syncKV) {
-        this.syncKV = syncKV;
-        this.rpcDispatcher = new RpcDispatcher(syncKV.getChannel(), this);
+    RpcFacade(JChannel channel, Function<String, SyncKVTable> tableSupplier, Supplier<Map<String, TableStats>> statsSupplier) {
+        this.channel = channel;
+        this.rpcDispatcher = new RpcDispatcher(channel, this);
         this.rpcDispatcher.setMethodInvoker(this::methodInvoker);
+        this.tableSupplier = tableSupplier;
+        this.statsSupplier = statsSupplier;
     }
 
     Object methodInvoker(Object target, short method_id, Object[] args) {
@@ -57,13 +63,14 @@ class RpcFacade {
     }
 
     private Address getCurrentAddress() {
-        return syncKV.getChannel().getAddress();
+        return channel.getAddress();
     }
 
     // --- PUT ---------
 
-    void putRequest(Address source, String table, byte[] key, byte[] value) {
-        broadcastToEverybodyElse(new MethodCall(HANDLE_PUT_REQUEST, new Object[]{addressToBase64(source), table, key, value}, new Class[]{String.class, String.class, byte[].class, byte[].class}));
+    void putRequest(String table, byte[] key, byte[] value) {
+        broadcastToEverybodyElse(new MethodCall(HANDLE_PUT_REQUEST, new Object[]{addressToBase64(getCurrentAddress()), table, key, value},
+                        new Class[]{String.class, String.class, byte[].class, byte[].class}));
     }
 
     private static final short HANDLE_PUT_REQUEST = 0;
@@ -76,7 +83,7 @@ class RpcFacade {
             return;
         }
 
-        syncKV.getTable(table).addRawKV(key, value);
+        tableSupplier.apply(table).addRawKV(key, value);
     }
     // -----------------
 
@@ -85,15 +92,14 @@ class RpcFacade {
 
     private static final Comparator<KV> DESC_METADATA_ORDER = (kv1, kv2) -> SyncKVTable.compareKey(kv1.k, kv2.k);
 
-    KV getValue(Address src, String table, String key) {
-        JChannel channel = syncKV.getChannel();
-        List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
+    KV getValue(String table, String key) {
+        List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(getCurrentAddress())).collect(Collectors.toList());
 
         if (everybodyElse.isEmpty()) {
             return null;
         }
 
-        MethodCall call = new MethodCall(HANDLE_GET_VALUE, new Object[]{addressToBase64(src), table, key}, new Class[]{String.class, String.class, String.class});
+        MethodCall call = new MethodCall(HANDLE_GET_VALUE, new Object[]{addressToBase64(getCurrentAddress()), table, key}, new Class[]{String.class, String.class, String.class});
         KV res = null;
         try {
             RspList<KV> rsps = rpcDispatcher.callRemoteMethods(everybodyElse, call, RequestOptions.SYNC().setTimeout(50));
@@ -117,7 +123,7 @@ class RpcFacade {
         if (address.equals(getCurrentAddress())) {
             return null;
         } else {
-            return syncKV.getTable(table).get(key, false);
+            return tableSupplier.apply(table).get(key, false);
         }
     }
 
@@ -128,7 +134,7 @@ class RpcFacade {
 
     private static final short HANDLE_GET_TABLE_METADATA_FOR_SYNC = 2;
     Map<String, TableStats> handleGetTableMetadataForSync() {
-        return syncKV.getTableMetadataForSync();
+        return statsSupplier.get();
     }
 
     // -----------------
@@ -140,7 +146,7 @@ class RpcFacade {
     private static final short HANDLE_GET_FULL_TABLE_DATA = 3;
     void handleGetFullTableData(String tableName, String src) {
         Address toSend = fromBase64(src);
-        SyncKVTable table = syncKV.getTable(tableName);
+        SyncKVTable table = tableSupplier.apply(tableName);
         List<KV> res = new ArrayList<>();
         Iterator<byte[]> it = table.rawKeys();
         while (it.hasNext()) {
@@ -172,7 +178,7 @@ class RpcFacade {
     private static final short HANDLE_GET_PARTIAL_TABLE_DATA = 4;
     void handleGetPartialTableData(String tableName, List<TreeSync.ExportLeaf> remote, String source) {
         Address toSend = fromBase64(source);
-        SyncKVTable localTable = syncKV.getTable(tableName);
+        SyncKVTable localTable = tableSupplier.apply(tableName);
         TreeSync localTreeSync = localTable.getTreeSync();
         localTreeSync.removeMatchingLeafs(remote);
         List<KV> res = new ArrayList<>();
@@ -199,7 +205,7 @@ class RpcFacade {
     private static final short HANDLE_RAW_BULK_PUT = 5;
 
     void setHandleRawBulkPut(String tableName, List<KV> kvs) {
-        SyncKVTable localTable = syncKV.getTable(tableName);
+        SyncKVTable localTable = tableSupplier.apply(tableName);
         localTable.importRawData(kvs);
         LOGGER.log(Level.FINE, () -> "Bulk import of " + kvs.size() + " keys in table " + tableName);
     }
@@ -209,8 +215,7 @@ class RpcFacade {
 
     private void broadcastToEverybodyElse(MethodCall call) {
         try {
-            JChannel channel = syncKV.getChannel();
-            List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(channel.getAddress())).collect(Collectors.toList());
+            List<Address> everybodyElse = channel.view().getMembers().stream().filter(address -> !address.equals(getCurrentAddress())).collect(Collectors.toList());
             if (everybodyElse.isEmpty()) {
                 return;
             }
