@@ -176,17 +176,21 @@ public class SyncKV implements AutoCloseable, Closeable {
                     new MPINGCustom(true),
                     new MERGE3(),
                     new FD_SOCK(),
-                    new FD_ALL2(),
+                    new FD_ALL(),
                     new VERIFY_SUSPECT(),
                     new BARRIER()));
             if (password != null) {
                 protocols.add(new SymEncryptWithKeyFromMemory(password));
             }
+            NAKACK2 nakack2 = new NAKACK2();
+            nakack2.setUseMcastXmit(false);
+            nakack2.setDiscardDeliveredMsgs(true);
             protocols.addAll(Arrays.asList(
-                    new NAKACK2(),
+                    nakack2,
                     new UNICAST3(),
                     new STABLE(),
                     new GMS(),
+                    new UFC(),
                     new MFC(),
                     new FRAG2(),
                     new RSVP(),
