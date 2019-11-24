@@ -4,7 +4,6 @@ import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.WriteBuffer;
 import org.h2.mvstore.type.DataType;
-import org.jgroups.JChannel;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
