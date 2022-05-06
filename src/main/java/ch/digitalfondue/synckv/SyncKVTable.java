@@ -3,6 +3,7 @@ package ch.digitalfondue.synckv;
 import org.h2.mvstore.MVMap;
 import org.h2.mvstore.MVStore;
 import org.h2.mvstore.WriteBuffer;
+import org.h2.mvstore.type.BasicDataType;
 import org.h2.mvstore.type.DataType;
 
 import java.nio.ByteBuffer;
@@ -119,7 +120,7 @@ public class SyncKVTable {
         }
     }
 
-    private static class ValueByteArrayDataType implements DataType {
+    private static class ValueByteArrayDataType extends BasicDataType {
 
         @Override
         public int compare(Object a, Object b) {
@@ -142,13 +143,6 @@ public class SyncKVTable {
         }
 
         @Override
-        public void write(WriteBuffer buff, Object[] obj, int len, boolean key) {
-            for (int i = 0; i < len; i++) {
-                write(buff, obj[i]);
-            }
-        }
-
-        @Override
         public Object read(ByteBuffer buff) {
             int toRead = buff.getInt();
             byte[] r = new byte[toRead];
@@ -157,10 +151,8 @@ public class SyncKVTable {
         }
 
         @Override
-        public void read(ByteBuffer buff, Object[] obj, int len, boolean key) {
-            for (int i = 0; i < len; i++) {
-                obj[i] = read(buff);
-            }
+        public Object[] createStorage(int size) {
+            return new byte[size][];
         }
     }
 

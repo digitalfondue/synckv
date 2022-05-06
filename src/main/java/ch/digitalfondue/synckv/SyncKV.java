@@ -183,7 +183,7 @@ public class SyncKV implements AutoCloseable, Closeable {
                 protocols.add(new SymEncryptWithKeyFromMemory(password));
             }
             NAKACK2 nakack2 = new NAKACK2();
-            nakack2.setUseMcastXmit(false);
+            // nakack2.setUseMcastXmit(false);
             nakack2.setDiscardDeliveredMsgs(true);
             protocols.addAll(Arrays.asList(
                     nakack2,

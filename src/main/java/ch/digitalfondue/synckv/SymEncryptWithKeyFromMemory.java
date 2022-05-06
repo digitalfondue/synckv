@@ -19,6 +19,12 @@ class SymEncryptWithKeyFromMemory extends Encrypt<KeyStore.SecretKeyEntry> {
     }
 
     @Override
+    public <T extends Encrypt<KeyStore.SecretKeyEntry>> T setKeyStoreEntry(KeyStore.SecretKeyEntry secretKeyEntry) {
+        this.secret_key = new SecretKeySpec(stretchKey(password).getEncoded(), "AES");
+        return (T) this;
+    }
+
+    @Override
     public void init() throws Exception {
 
         this.sym_keylength = 256;
@@ -28,11 +34,6 @@ class SymEncryptWithKeyFromMemory extends Encrypt<KeyStore.SecretKeyEntry> {
             this.setKeyStoreEntry(null);
         }
         super.init();
-    }
-
-    @Override
-    public void setKeyStoreEntry(KeyStore.SecretKeyEntry entry) {
-        this.secret_key = new SecretKeySpec(stretchKey(password).getEncoded(), "AES");
     }
 
     private static SecretKey stretchKey(String password) {

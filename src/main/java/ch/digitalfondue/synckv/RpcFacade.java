@@ -235,7 +235,7 @@ class RpcFacade {
         ByteArrayDataOutputStream out = new ByteArrayDataOutputStream();
         try {
             Util.writeAddress(address, out);
-            return Base64.getEncoder().encodeToString(out.getByteBuffer().array());
+            return Base64.getEncoder().encodeToString(out.getBuffer().getBytes());
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
